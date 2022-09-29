@@ -1,0 +1,424 @@
+gluegen2 (2.3.2-8) unstable; urgency=medium
+
+  * Team upload.
+  * Use debhelper-compat.
+    - Update compat level to 13.
+  * Update Standards-Version to 4.5.1
+  * Fix ftbfs with GCC-10. (Closes: #957276)
+
+ -- Sudip Mukherjee <sudipm.mukherjee@gmail.com>  Mon, 30 Nov 2020 20:28:21 +0000
+
+gluegen2 (2.3.2-7) unstable; urgency=medium
+
+  * Team upload.
+  * Fixed the build failure with Java 10 (Closes: #897485)
+  * Standards-Version updated to 4.1.4
+  * Switch to debhelper level 11
+  * Use salsa.debian.org Vcs-* URLs
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Wed, 16 May 2018 16:36:30 +0200
+
+gluegen2 (2.3.2-6) unstable; urgency=medium
+
+  * Team upload.
+  * Fixed the build failure with Java 9 (Closes: #874643)
+  * Added mips64(el) and mipsn32(el) support. Thanks to YunQiang Su
+    and Dejan Latinovic for the patch (Closes: #774832)
+  * Build with the DH sequencer instead of CDBS
+  * Changed the source/target level to 1.7
+  * Standards-Version updated to 4.1.2
+  * Switch to debhelper level 10
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Tue, 05 Dec 2017 14:54:43 +0100
+
+gluegen2 (2.3.2-5) unstable; urgency=medium
+
+  * Team upload.
+  * Added the missing build dependency on maven-repo-helper
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Thu, 04 Aug 2016 13:05:20 +0200
+
+gluegen2 (2.3.2-4) unstable; urgency=medium
+
+  * Team upload.
+
+  [ tony mancill ]
+  * Add patch for kFreeBSD and Hurd (Closes: #808179).
+    - Thanks to Steven Chamberlain for the patch.
+
+  [ Emmanuel Bourg ]
+  * Install the Maven artifacts for gluegen-rt (Closes: #712003)
+  * Removed the build dependency on quilt
+  * Standards-Version updated to 3.9.8
+  * Use secure Vcs-* URLs
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Thu, 04 Aug 2016 12:09:28 +0200
+
+gluegen2 (2.3.2-3) unstable; urgency=medium
+
+  * Team upload.
+  * Upload to unstable.
+  * Fix support for architectures s390x, powerpc, ppc64el, and armhf
+    (closes: #779482):
+    - New patch s390x-support.diff: add support for s390x.
+    - Simplify patch ppc64el-support.diff: the preferred pagesize is
+      the runtime one, then no need to define the size_ppc_64_unix
+      record where only the pagesize is different from size_lp64_unix.
+    - d/rules: drop useless DEB_ANT_BUILD_TARGET override which
+      disabled test cases build for armhf.
+
+ -- Gilles Filippini <pini@debian.org>  Tue, 27 Oct 2015 11:34:36 +0100
+
+gluegen2 (2.3.2-2) experimental; urgency=medium
+
+  * Team upload.
+  * Patch tests.diff: restore missing part mistakenly dropped in
+    previous release.
+  * Patch fix-arm64-build-config.diff: fix jre native libs path for
+    arm64.
+  * d/rules: simplify the test suite launch.
+
+ -- Gilles Filippini <pini@debian.org>  Thu, 15 Oct 2015 10:03:21 +0200
+
+gluegen2 (2.3.2-1) experimental; urgency=medium
+
+  [ tony mancill ]
+  * Make the build-dep on default-jdk versioned on >= 2:1.6.
+    This prevents attempts to build on non-openjdk architectures.
+
+  [ Gilles Filippini ]
+  * Team upload.
+  * New upstream release.
+  * Refresh patches.
+  * New patch disable-static-linking.diff.
+  * Patch missing-arch-symbol.diff: don't check at all for specific
+    glibc symbol version in glibc-compat-symbols.h (fix FTBFS on
+    armel and arm64).
+
+ -- Gilles Filippini <pini@debian.org>  Mon, 12 Oct 2015 10:59:34 +0200
+
+gluegen2 (2.3.1-2) experimental; urgency=medium
+
+  * Team upload.
+  * WIP fixing ppc64el usability:
+    - New patch: ppc64el-support.diff
+    - Merge patch fix-ppc64-build-config.patch into ppc64el-support.diff
+    - New patch fix-arm64-build-config.patch to gathers aarch64 snippets
+      previously in fix-ppc64-build-config.patch.
+  * Run the test suite at build time:
+    - Patch tests.diff
+    - debian/rules adapted accordingly
+    - Failed tests don't make the build fail.
+
+ -- Gilles Filippini <pini@debian.org>  Sun, 11 Oct 2015 00:28:38 +0200
+
+gluegen2 (2.3.1-1) experimental; urgency=medium
+
+  * Team upload.
+  * New upstream release. (Closes: #791992, #746493, #791993)
+  * Add build-dep on jsr305-java.
+  * Update debian/copyright and debian/README.source to document jcpp.
+  * Update debian/copyright to assign Expat license to debian/*.
+
+ -- tony mancill <tmancill@debian.org>  Thu, 08 Oct 2015 19:49:11 -0700
+
+gluegen2 (2.2.4-2) unstable; urgency=medium
+
+  * Team upload.
+
+  [ Colin Watson ]
+  * Fix missing-arch-symbol.diff to cover the gcc case as well as clang
+    (Closes: #769003)
+
+ -- gregor herrmann <gregoa@debian.org>  Fri, 14 Nov 2014 22:58:56 +0100
+
+gluegen2 (2.2.4-1) unstable; urgency=medium
+
+  * Team upload
+  * New upstream release
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Mon, 20 Oct 2014 16:52:41 +0200
+
+gluegen2 (2.2.1-1) unstable; urgency=medium
+
+  * Team upload
+  * New upstream release
+  * Removed the dot at the end of the packages descriptions
+  * Use XZ compression for the upstream tarball
+  * Moved the package to Git
+  * debian/copyright: Updated to the Copyright Format 1.0
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Tue, 07 Oct 2014 16:45:57 +0200
+
+gluegen2 (2.2.0-1) unstable; urgency=medium
+
+  [ Sylvestre Ledru ]
+  * New upstream release
+    - Include the fix for openjdk 8 (Closes: #754971)
+
+  [ Anibal Monsalve Salazar ]
+  * Add mips support.
+    Add add-mips-support.patch.
+    Patch by Dejan Latinovic <Dejan.Latinovic@imgtec.com>.
+    Thanks to Anibal Monsalve Salazar.  (Closes: #750548)
+
+  [ Emmanuel Bourg ]
+  * Disabled the tests due to missing dependencies
+  * Standards-Version updated to 3.9.6 (no changes)
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Tue, 07 Oct 2014 14:15:46 +0200
+
+gluegen2 (2.1.5-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Mon, 24 Mar 2014 14:26:05 +0100
+
+gluegen2 (2.1.4-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Tue, 11 Feb 2014 15:05:50 +0100
+
+gluegen2 (2.1.3-2) unstable; urgency=low
+
+  * Fix missing architectures support in <glibc-compat-symbols.h>
+    Thanks to Aurélien Jarno for the patch (Closes: #733310)
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Thu, 16 Jan 2014 11:03:13 +0100
+
+gluegen2 (2.1.3-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Tue, 17 Dec 2013 09:29:23 +0100
+
+gluegen2 (2.1.2-1) unstable; urgency=low
+
+  * New upstream release
+  * Update of the repack script to remove some thirdparty jars
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Fri, 08 Nov 2013 10:20:37 +0100
+
+gluegen2 (2.0.2-2) unstable; urgency=low
+
+  * Team upload.
+  * Apply patch to build config for FTBFS on alpha
+    - Thank you to Michael Cree. (Closes: #728571)
+  * Freshen and apply patch to build config for FTBFS on ppc64
+    - Thank you to Hiroyuki Yamamoto.  (Closes: #694070)
+  * Update Standards-Version to 3.9.5.
+  * Change debhelper version from 7 to 9; update debian/compat from 5 to 9.
+
+ -- tony mancill <tmancill@debian.org>  Sun, 03 Nov 2013 21:11:45 -0800
+
+gluegen2 (2.0.2-1) unstable; urgency=low
+
+  * New upstream release
+
+  [ Colin Watson ]
+  * Synchronise From Ubuntu.  Remaining changes:
+    - Add more explicit armhf support, rather than trying to use incorrect
+      armel toolchain flags.
+    - On armhf, build only the all.no_junit target.  "all junit.run"
+      mysteriously segfaults on the first run but not thereafter.
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sat, 28 Sep 2013 18:53:18 +0200
+
+gluegen2 (2.0-rc12-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Mon, 01 Jul 2013 14:01:11 +0200
+
+gluegen2 (2.0-rc11-1) unstable; urgency=low
+
+  * Upload to unstable
+  * Standards-Version updated to 3.9.4
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Wed, 15 May 2013 09:49:48 +0200
+
+gluegen2 (2.0-rc11-1~exp1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Thu, 08 Nov 2012 16:21:32 +0100
+
+gluegen2 (2.0-rc10-1~exp1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sun, 02 Sep 2012 14:55:41 +0200
+
+gluegen2 (2.0-rc9-1~exp1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Mon, 02 Jul 2012 02:44:59 +0200
+
+gluegen2 (2.0-rc8-2) unstable; urgency=low
+
+  * Upload in unstable
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Wed, 13 Jun 2012 18:31:35 +0200
+
+gluegen2 (2.0-rc8-1) experimental; urgency=low
+
+  [ Miguel Landaeta ]
+  * Use public access URL in Vcs-Svn field. (Closes: #669300).
+
+  [ Sylvestre Ledru ]
+  * New upstream release
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Tue, 15 May 2012 14:23:28 +0200
+
+gluegen2 (2.0-rc5-4) unstable; urgency=low
+
+  * Fix a problem in the loading of the native lib (Closes: #668821)
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sun, 15 Apr 2012 18:37:43 +0200
+
+gluegen2 (2.0-rc5-3) unstable; urgency=low
+
+  * Set the exact version of the dependency between libgluegen2-rt-java
+    and libgluegen2-jni
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Tue, 03 Apr 2012 10:59:34 +0200
+
+gluegen2 (2.0-rc5-2) unstable; urgency=low
+
+  * Really upload to unstable (oups)
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Tue, 13 Mar 2012 01:04:56 +0100
+
+gluegen2 (2.0-rc5-1) experimental; urgency=low
+
+  * Upload in unstable
+  * Standards-Version updated to version 3.9.3
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Mon, 12 Mar 2012 20:31:43 +0100
+
+gluegen2 (2.0-rc5-1~exp2) experimental; urgency=low
+
+  * Fix the build issue under s390x
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Mon, 26 Dec 2011 09:27:15 +0100
+
+gluegen2 (2.0-rc5-1~exp1) experimental; urgency=low
+
+  * New upstream release
+  * watch now possible and integrated
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Mon, 26 Dec 2011 01:18:19 +0100
+
+gluegen2 (2.0-rc3-6) unstable; urgency=low
+
+  * Fix an issue under Arm and an other one for sparc which were causing issues
+    with the jogl build
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Tue, 22 Nov 2011 00:40:19 +0100
+
+gluegen2 (2.0-rc3-5) unstable; urgency=low
+
+  * Add dependency between libgluegen2-rt-java => libgluegen2-jni
+  * Disable the display of the cache jar exception
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sun, 20 Nov 2011 17:59:48 +0100
+
+gluegen2 (2.0-rc3-4) unstable; urgency=low
+
+  * Grrr, now, compiler.cfg.linux is factorized for the other archs
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sat, 08 Oct 2011 16:47:39 +0200
+
+gluegen2 (2.0-rc3-3) unstable; urgency=low
+
+  * Update tags Vcs-* 
+  * linker.cfg.linux.* on some arch was failing
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sat, 08 Oct 2011 15:08:11 +0200
+
+gluegen2 (2.0-rc3-2) unstable; urgency=low
+
+  * Fix some FTBFS on various archs
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sat, 08 Oct 2011 13:50:08 +0200
+
+gluegen2 (2.0-rc3-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Thu, 06 Oct 2011 13:24:11 +0200
+
+gluegen2 (2.0-rc2-7) unstable; urgency=low
+
+  * Fix the runtime detection of the arch + 32/64 bits. Was causing FTBFS of
+    jogl2
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sun, 08 May 2011 23:23:15 +0200
+
+gluegen2 (2.0-rc2-6) unstable; urgency=low
+
+  * Upload to unstable
+  * needless-dependency-on-jre lintian warning removed
+  * script-not-executable fixed
+  * Standards-Version updated to 3.9.2
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sat, 16 Apr 2011 13:51:53 +0200
+
+gluegen2 (2.0-rc2-5) experimental; urgency=low
+
+  * Fix build issues with arm, ia64, alpha & armel (Closes: #615872)
+  * /usr/lib/jvm/default-java as JAVA_HOME (Closes: #618788)
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Thu, 24 Mar 2011 23:34:22 +0100
+
+gluegen2 (2.0-rc2-4) experimental; urgency=low
+
+  * Same player, try again: I forgot some declarations in make/build.xml
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Wed, 16 Mar 2011 21:23:33 +0100
+
+gluegen2 (2.0-rc2-3) experimental; urgency=low
+
+  * Try to build on all Debian archs. Archs are likely to fail here.
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Mon, 14 Mar 2011 21:28:49 +0100
+
+gluegen2 (2.0-rc2-2) experimental; urgency=low
+
+  * Beginning of the management of other debian archs. Partially fixes the
+    bug #615872.
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sun, 13 Mar 2011 22:54:39 +0100
+
+gluegen2 (2.0-rc2-1) experimental; urgency=low
+
+  * New upstream release
+  * README.source added
+  * Copyright file updated
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Fri, 04 Mar 2011 16:21:45 +0100
+
+gluegen2 (2.0-rc1-3) experimental; urgency=low
+
+  * Disable some options (junit of gluegen + copy of the license files) 
+    for packaged based on gluegen2 (cf: disablesSomeOptions.diff)
+  * Switch to dpkg-source 3.0 (quilt) format
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Tue, 01 Mar 2011 00:44:11 +0100
+
+gluegen2 (2.0-rc1-2) experimental; urgency=low
+
+  * gluegen2 artifact.properties + jnlp files also installed
+  * Update of the Vcs-* tags
+  * Switch to dpkg-source 3.0 (quilt) format
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Mon, 28 Feb 2011 10:15:33 +0100
+
+gluegen2 (2.0-rc1-1) experimental; urgency=low
+
+  * Initial Release (Closes: #605902)
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Sat, 04 Dec 2010 16:22:37 +0100
+

@@ -1,0 +1,4 @@
+version=3
+http://jogamp.org/deployment/jogamp-current/archive/Sources/ gluegen-v(.*).tar.xz \
+debian debian/orig-tar.sh
+

@@ -1,0 +1,6 @@
+build/
+build-temp/
+GnuCTreeParserTokenTypes.txt
+STDCTokenTypes.txt
+runtest.log
+test/TestJarsInJar/TestJarsInJar.jar

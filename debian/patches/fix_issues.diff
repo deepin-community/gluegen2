@@ -1,0 +1,18 @@
+Index: gluegen2-2.0-rc3/make/gluegen-cpptasks-base.xml
+===================================================================
+--- gluegen2-2.0-rc3.orig/make/gluegen-cpptasks-base.xml	2011-10-06 14:11:59.000000000 +0200
++++ gluegen2-2.0-rc3/make/gluegen-cpptasks-base.xml	2011-10-06 14:12:58.000000000 +0200
+@@ -1136,6 +1136,13 @@
+       <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/amd64" />
+     </target>
+ 
++    <target name="gluegen.cpptasks.declare.compiler.linux.alpha" if="isLinuxAlpha">
++      <echo message="Linux.alpha" />
++      <property name="compiler.cfg.id.base"          value="compiler.cfg.linux.alpha" /> 
++      <property name="linker.cfg.id.base"            value="linker.cfg.linux.alpha" /> 
++      <property name="java.lib.dir.platform"         value="${env.TARGET_JAVA_LIBS}" />
++    </target>
++
+     <target name="gluegen.cpptasks.declare.compiler.linux.armv7" if="isLinuxARMv7">
+       <echo message="Linux.armv7" />
+       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux.armv7" /> 

@@ -1,0 +1,30 @@
+Index: gluegen2-2.0-rc3/make/gluegen-cpptasks-base.xml
+===================================================================
+--- gluegen2-2.0-rc3.orig/make/gluegen-cpptasks-base.xml	2011-11-20 17:13:25.000000000 +0100
++++ gluegen2-2.0-rc3/make/gluegen-cpptasks-base.xml	2011-11-22 00:39:36.011692419 +0100
+@@ -1147,14 +1147,14 @@
+       <echo message="Linux.alpha" />
+       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux.alpha" /> 
+       <property name="linker.cfg.id.base"            value="linker.cfg.linux.alpha" /> 
+-      <property name="java.lib.dir.platform"         value="${env.TARGET_JAVA_LIBS}" />
++      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/alpha" />
+     </target>
+ 
+     <target name="gluegen.cpptasks.declare.compiler.linux.armv7" if="isLinuxARMv7">
+       <echo message="Linux.armv7" />
+       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux.armv7" /> 
+       <property name="linker.cfg.id.base"            value="linker.cfg.linux.armv7" /> 
+-      <property name="java.lib.dir.platform"         value="${env.TARGET_JAVA_LIBS}" />
++      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/arm" />
+     </target>
+ 
+     <target name="gluegen.cpptasks.declare.compiler.linux.ia64" if="isLinuxIA64">
+@@ -1203,7 +1203,7 @@
+       <echo message="Linux.Sparc" />
+       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
+       <property name="linker.cfg.id.base"            value="linker.cfg.linux" /> 
+-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/" />
++      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/sparc" />
+     </target>
+ 
+     <target name="gluegen.cpptasks.declare.compiler.linux" depends="gluegen.cpptasks.declare.compiler.linux.x86,gluegen.cpptasks.declare.compiler.linux.amd64,gluegen.cpptasks.declare.compiler.linux.ia64,gluegen.cpptasks.declare.compiler.linux.armv7,gluegen.cpptasks.declare.compiler.linux.alpha,gluegen.cpptasks.declare.compiler.linux.hppa,gluegen.cpptasks.declare.compiler.linux.mips,gluegen.cpptasks.declare.compiler.linux.mipsel,gluegen.cpptasks.declare.compiler.linux.ppc,gluegen.cpptasks.declare.compiler.linux.s390,gluegen.cpptasks.declare.compiler.linux.sparc" if="isLinux">

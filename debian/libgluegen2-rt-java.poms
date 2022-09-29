@@ -1,0 +1,1 @@
+debian/pom-gluegen-rt.xml --java-lib --usj-name=gluegen2-rt --artifact=build/gluegen-rt.jar

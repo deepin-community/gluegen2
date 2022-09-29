@@ -1,0 +1,7 @@
+make/*                     /usr/share/gluegen2/make/
+build/artifact.properties  /usr/share/gluegen2/
+jnlp-files/*               /usr/share/gluegen2/jnlp-files/
+src/java/*                 /usr/share/gluegen2/src/java/
+src/junit/*                /usr/share/gluegen2/src/junit/
+src/native/*               /usr/share/gluegen2/src/native/
+test/junit/*               /usr/share/gluegen2/test/junit

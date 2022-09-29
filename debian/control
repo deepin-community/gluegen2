@@ -1,0 +1,88 @@
+Source: gluegen2
+Section: java
+Priority: optional
+Maintainer: Debian Java Maintainers <pkg-java-maintainers@lists.alioth.debian.org>
+Uploaders: Sylvestre Ledru <sylvestre@debian.org>
+Build-Depends:
+ ant,
+ ant-contrib,
+ ant-contrib-cpptasks,
+ ant-optional,
+ debhelper-compat (= 13),
+ default-jdk (>= 2:1.7),
+ junit4,
+ libantlr-java,
+ libjsr305-java,
+ maven-repo-helper
+Standards-Version: 4.5.1
+Vcs-Git: https://salsa.debian.org/java-team/gluegen2.git
+Vcs-Browser: https://salsa.debian.org/java-team/gluegen2
+Homepage: http://jogamp.org
+
+Package: libgluegen2-rt-java
+Architecture: all
+Suggests: libgluegen2-doc
+Depends:
+ antlr,
+ libgluegen2-jni (>= ${source:Version}),
+ ${misc:Depends}
+Description: Tool to automatically generate the Java and JNI code
+ Gluegen reads as input ANSI C header files and separate configuration files
+ which provide control over many aspects of the glue code generation. GlueGen
+ uses a complete ANSI C parser and an internal representation (IR) capable of
+ representing all C types to represent the APIs for which it generates
+ interfaces. It has the ability to perform significant transformations on the
+ IR before glue code emission. GlueGen is currently powerful enough to bind
+ even low-level APIs such as the Java Native Interface (JNI) and the AWT Native
+ Interface (JAWT) back up to the Java programming language.
+ .
+ This package contains the gluegen 2 runtime files.
+
+Package: libgluegen2-build-java
+Architecture: all
+Suggests: libgluegen2-doc
+Depends: antlr, ${misc:Depends}
+Description: Tool to automatically generate the Java and JNI code
+ Gluegen reads as input ANSI C header files and separate configuration files
+ which provide control over many aspects of the glue code generation. GlueGen
+ uses a complete ANSI C parser and an internal representation (IR) capable of
+ representing all C types to represent the APIs for which it generates
+ interfaces. It has the ability to perform significant transformations on the
+ IR before glue code emission. GlueGen is currently powerful enough to bind
+ even low-level APIs such as the Java Native Interface (JNI) and the AWT Native
+ Interface (JAWT) back up to the Java programming language.
+ .
+ This package contains some Java sources necessary to build gluegen-based
+ packages.
+
+Package: libgluegen2-jni
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Tool to automatically generate the Java and JNI code
+ Gluegen reads as input ANSI C header files and separate configuration files
+ which provide control over many aspects of the glue code generation. GlueGen
+ uses a complete ANSI C parser and an internal representation (IR) capable of
+ representing all C types to represent the APIs for which it generates
+ interfaces. It has the ability to perform significant transformations on the
+ IR before glue code emission. GlueGen is currently powerful enough to bind
+ even low-level APIs such as the Java Native Interface (JNI) and the AWT Native
+ Interface (JAWT) back up to the Java programming language.
+ .
+ This package includes the architecture specific java native interface part.
+
+Package: libgluegen2-doc
+Architecture: all
+Section: doc
+Depends: ${misc:Depends}
+Suggests: libgluegen2
+Description: Tool to automatically generate the Java and JNI code
+ Gluegen reads as input ANSI C header files and separate configuration files
+ which provide control over many aspects of the glue code generation. GlueGen
+ uses a complete ANSI C parser and an internal representation (IR) capable of
+ representing all C types to represent the APIs for which it generates
+ interfaces. It has the ability to perform significant transformations on the
+ IR before glue code emission. GlueGen is currently powerful enough to bind
+ even low-level APIs such as the Java Native Interface (JNI) and the AWT Native
+ Interface (JAWT) back up to the Java programming language.
+ .
+ This package includes the API documentation for Gluegen package.

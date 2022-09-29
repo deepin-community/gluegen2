@@ -1,0 +1,10 @@
+Here is how the current gluegen2 orig tarball was created:
+
+- Update debian/changelog for the new target verison.
+- Use the debian/rules get-orig-source target to retrieve and repack
+  the gluegen orig tarball.
+- Extract the gluegen orig tarball.
+- Retrieve the sources for jcpp from:
+  http://jogamp.org/deployment/jogamp-current/archive/Sources/
+- Extract the jcpp sources into the gluegen tarball.
+- Repack as gluegen2_xxx.orig.tar.gz 

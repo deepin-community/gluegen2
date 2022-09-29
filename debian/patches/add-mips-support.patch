@@ -1,0 +1,199 @@
+From: Dejan Latinovic <Dejan.Latinovic@imgtec.com>
+Subject: mips support for gluegen2
+Date: Wed, 4 Jun 2014 11:34:11 +0000
+
+https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=750548
+
+Package sivp fails to build on Debian for mips/mipsel arch with an
+error:
+
+> SCI_DISABLE_TK=1 SCI_JAVA_ENABLE_HEADLESS=1 DOCBOOK_ROOT=/usr/share/sgml/docbook/stylesheet/xsl/nwalsh \
+> /usr/bin/scilab -nw -f builder.sce
+> Could not create a Scilab main class. Error:
+> Exception in thread "main" java.lang.ExceptionInInitializerError
+>         at javax.media.opengl.GLProfile.<clinit>(GLProfile.java:83)
+>         at org.scilab.modules.gui.SwingView.<init>(Unknown Source)
+>         at org.scilab.modules.gui.SwingView.registerSwingView(Unknown Source)
+>         at org.scilab.modules.core.Scilab.<init>(Unknown Source)
+> Caused by: java.lang.RuntimeException: Please port CPU detection to your platform (linux/mipsel)
+>         at jogamp.common.os.PlatformPropsImpl.getCPUTypeImpl(PlatformPropsImpl.java:302)
+>         at jogamp.common.os.PlatformPropsImpl.<clinit>(PlatformPropsImpl.java:134)
+>         ... 4 more
+> 
+> Scilab cannot create Scilab Java Main-Class (we have not been able to find the main Scilab class. Check if the Scilab and thirdparty packages are available).
+> debian/rules:9: recipe for target 'build-arch' failed
+> 
+
+The reason for this failure is a lack of support for mips/mipsel in
+Debian package gluegen2, version 2.1.5.
+
+Patch add-mips-support.patch that contains support for mips/mipsel is
+attached.
+
+After rebuilding gluegen2 with these changes, I was able to build sivp
+successfully.
+
+Index: gluegen-v2.2.0/src/java/com/jogamp/common/os/MachineDescription.java
+===================================================================
+--- gluegen-v2.2.0.orig/src/java/com/jogamp/common/os/MachineDescription.java	2014-08-10 15:38:44.861874993 +0200
++++ gluegen-v2.2.0/src/java/com/jogamp/common/os/MachineDescription.java	2014-08-10 15:38:44.857874863 +0200
+@@ -60,7 +60,11 @@
+       /** {@link Platform.CPUType#X86_64} Little Endian Windows */
+       X86_64_WINDOWS(Platform.CPUType.X86_64),
+       /** {@link Platform.CPUType#SPARC_32} Big Endian Solaris */
+-      SPARC_32_SUNOS(Platform.CPUType.SPARC_32);
++      SPARC_32_SUNOS(Platform.CPUType.SPARC_32),
++      /** {@link Platform.CPUType#MIPS_32} Big Endian Unix */
++      MIPS_32_UNIX(Platform.CPUType.MIPS_32),
++      /** {@link Platform.CPUType#MIPSEL_32} Little Endian Unix */
++      MIPSEL_32_UNIX(Platform.CPUType.MIPSEL_32);
+ 
+       public final Platform.CPUType cpu;
+ 
+@@ -77,6 +81,7 @@
+   private final static int[] size_x86_64_unix     =  { 4,    8,     4,     8,     16,    8,   4096 };
+   private final static int[] size_x86_64_windows  =  { 4,    4,     4,     8,     16,    8,   4096 };
+   private final static int[] size_sparc_32_sunos  =  { 4,    4,     4,     8,     16,    4,   8192 };
++  private final static int[] size_mips_32_unix    =  { 4,    4,     4,     8,      8,    4,   4096 };
+ 
+   /*                               arch   os          i8, i16, i32, i64, int, long, float, doubl, ldoubl, ptr */
+   private final static int[] align_armeabi        =  { 1,   2,   4,   8,   4,    4,     4,     8,      8,   4 };
+@@ -86,6 +91,7 @@
+   private final static int[] align_x86_64_unix    =  { 1,   2,   4,   8,   4,    8,     4,     8,     16,   8 };
+   private final static int[] align_x86_64_windows =  { 1,   2,   4,   8,   4,    4,     4,     8,     16,   8 };
+   private final static int[] align_sparc_32_sunos =  { 1,   2,   4,   8,   4,    4,     4,     8,      8,   4 };
++  private final static int[] align_mips_32_unix   =  { 1,   2,   4,   8,   4,    4,     4,     8,      8,   4 };
+ 
+   public enum StaticConfig {
+       /** {@link MachineDescription.ID#ARMle_EABI } */
+@@ -101,7 +107,11 @@
+       /** {@link MachineDescription.ID#X86_64_WINDOWS } */
+       X86_64_WINDOWS(ID.X86_64_WINDOWS, true,  size_x86_64_windows, align_x86_64_windows),
+       /** {@link MachineDescription.ID#SPARC_32_SUNOS } */
+-      SPARC_32_SUNOS(ID.SPARC_32_SUNOS, false, size_sparc_32_sunos, align_sparc_32_sunos);
++      SPARC_32_SUNOS(ID.SPARC_32_SUNOS, false, size_sparc_32_sunos, align_sparc_32_sunos),
++      /** {@link MachineDescription.ID#MIPS_32_UNIX } */
++      MIPS_32_UNIX(ID.MIPS_32_UNIX, false, size_mips_32_unix, align_mips_32_unix),
++     /** {@link MachineDescription.ID#MIPSEL_32_UNIX } */
++      MIPSEL_32_UNIX(ID.MIPSEL_32_UNIX, true, size_mips_32_unix, align_mips_32_unix);
+ 
+       public final ID id;
+       public final MachineDescription md;
+Index: gluegen-v2.2.0/src/java/com/jogamp/common/os/Platform.java
+===================================================================
+--- gluegen-v2.2.0.orig/src/java/com/jogamp/common/os/Platform.java	2014-08-10 15:38:44.861874993 +0200
++++ gluegen-v2.2.0/src/java/com/jogamp/common/os/Platform.java	2014-08-10 15:38:44.857874863 +0200
+@@ -113,6 +113,8 @@
+         MIPS_32(  CPUFamily.MIPS,     0x0001),
+         /** MIPS 64bit */
+         MIPS_64(  CPUFamily.MIPS,     0x0002),
++        /** MIPS 32bit LE*/
++        MIPSEL_32(  CPUFamily.MIPS,   0x0004),
+         /** Itanium default */
+         IA64(      CPUFamily.IA64,    0x0000),
+         /** PA_RISC2_0 */
+Index: gluegen-v2.2.0/src/java/jogamp/common/os/MachineDescriptionRuntime.java
+===================================================================
+--- gluegen-v2.2.0.orig/src/java/jogamp/common/os/MachineDescriptionRuntime.java	2014-08-10 15:38:44.861874993 +0200
++++ gluegen-v2.2.0/src/java/jogamp/common/os/MachineDescriptionRuntime.java	2014-08-10 15:38:44.857874863 +0200
+@@ -78,6 +78,8 @@
+         case ARMv5:
+         case ARMv6:
+         case ARMv7:
++        case MIPS_32:
++        case MIPSEL_32:
+         case SPARC_32:
+         case PPC:
+             return true;
+@@ -95,6 +97,10 @@
+       if( isCPUArch32Bit(cpuType) ) {
+           if( cpuType.getFamily() == Platform.CPUFamily.ARM && littleEndian) {
+               return StaticConfig.ARMle_EABI;
++          } else if( cpuType == Platform.CPUType.MIPS_32) {
++              return StaticConfig.MIPS_32_UNIX;
++          } else if( cpuType == Platform.CPUType.MIPSEL_32) {
++              return StaticConfig.MIPSEL_32_UNIX;
+           } else if( osType == Platform.OSType.WINDOWS ) {
+               return StaticConfig.X86_32_WINDOWS;
+           } else if( osType == Platform.OSType.MACOS ) {
+Index: gluegen-v2.2.0/src/java/jogamp/common/os/PlatformPropsImpl.java
+===================================================================
+--- gluegen-v2.2.0.orig/src/java/jogamp/common/os/PlatformPropsImpl.java	2014-08-10 15:38:44.861874993 +0200
++++ gluegen-v2.2.0/src/java/jogamp/common/os/PlatformPropsImpl.java	2014-08-10 15:38:44.857874863 +0200
+@@ -298,6 +298,8 @@
+             return CPUType.PPC;
+         } else if( archLower.equals("mips") ) {        // android
+             return CPUType.MIPS_32;
++        } else if( archLower.equals("mipsel") ) {
++            return CPUType.MIPSEL_32;
+         } else {
+             throw new RuntimeException("Please port CPU detection to your platform (" + OS_lower + "/" + archLower + ")");
+         }
+@@ -406,6 +408,9 @@
+             } else if ( eh.isMips() ) {
+                 cpuType[0] = CPUType.MIPS_32; // FIXME
+                 abiType[0] = ABIType.GENERIC_ABI;
++            } else if ( eh.isMipsel() ) {
++                cpuType[0] = CPUType.MIPSEL_32;
++                abiType[0] = ABIType.GENERIC_ABI;
+             }
+             res = eh;
+         } catch(final Throwable t) {
+@@ -501,6 +506,8 @@
+      *   <li>linux-i586</li>
+      *   <li>linux-armv6</li>
+      *   <li>linux-armv6hf</li>
++     *   <li>linux-mips</li>
++     *   <li>linux-mipsel</li>
+      *   <li>android-armv6</li>
+      *   <li>macosx-universal</li>
+      *   <li>solaris-sparc</li>
+@@ -530,6 +537,12 @@
+                     _and_arch_tmp = "armv6";    // TODO: sync with gluegen-cpptasks-base.xml
+                 }
+                 break;
++            case MIPS_32:
++                _and_arch_tmp = "mips";
++                break;
++            case MIPSEL_32:
++                _and_arch_tmp = "mipsel";
++                break;
+             case SPARC_32:
+                 _and_arch_tmp = "sparc";
+                 break;
+Index: gluegen-v2.2.0/src/java/jogamp/common/os/elf/ElfHeader.java
+===================================================================
+--- gluegen-v2.2.0.orig/src/java/jogamp/common/os/elf/ElfHeader.java	2014-08-10 15:38:44.861874993 +0200
++++ gluegen-v2.2.0/src/java/jogamp/common/os/elf/ElfHeader.java	2014-08-10 15:38:44.857874863 +0200
+@@ -484,12 +484,19 @@
+ 
+     /**
+      * Returns true if {@link #getMachine() machine} is a 32 or 64 bit MIPS CPU
+-     * of type {@link #EM_MIPS}, {@link #EM_MIPS_X} or {@link #EM_MIPS_RS3_LE}. */
++     * of type {@link #EM_MIPS} or {@link #EM_MIPS_X}. */
+     public final boolean isMips() {
+         final short m = getMachine();
+         return EM_MIPS == m ||
+-               EM_MIPS_X == m ||
+-               EM_MIPS_RS3_LE == m;
++               EM_MIPS_X == m;
++    }
++
++    /**
++     * Returns true if {@link #getMachine() machine} is a 32  MIPS CPU
++     * of type {@link #EM_MIPS_RS3_LE}. */
++    public final boolean isMipsel() {
++        final short m = getMachine();
++        return EM_MIPS_RS3_LE == m;
+     }
+ 
+     /** Returns the processor-specific flags associated with the file. */
+@@ -568,6 +575,8 @@
+             machineS=", itanium";
+         } else if( isMips() ) {
+             machineS=", mips";
++        } else if( isMipsel() ) {
++            machineS=", mipsel";
+         } else {
+             machineS="";
+         }

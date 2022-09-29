@@ -1,0 +1,109 @@
+Index: gluegen2-2.0-rc3/make/build.xml
+===================================================================
+--- gluegen2-2.0-rc3.orig/make/build.xml	2011-10-06 14:16:27.000000000 +0200
++++ gluegen2-2.0-rc3/make/build.xml	2011-10-06 14:29:49.000000000 +0200
+@@ -21,7 +21,7 @@
+ 
+   <import file="gluegen-cpptasks.xml" />
+   <import file="jogamp-archivetasks.xml" />
+-  <import file="jogamp-androidtasks.xml" />
++<!--  <import file="jogamp-androidtasks.xml" /> -->
+   <import file="jogamp-env.xml" />
+ 
+   <condition property="rootrel.build" value="build">
+@@ -114,7 +114,7 @@
+          This requires the user-defined "antlr.jar" property. -->
+     <path id="gluegencompile.classpath">
+       <pathelement location="${antlr.jar}" />
+-      <pathelement location="${android.jar}"/>
++<!--      <pathelement location="${android.jar}"/> -->
+     </path>
+     
+     <!-- Create the classpath for using GlueGen. -->
+@@ -147,7 +147,7 @@
+     <!-- property name="javac.memorymax"  value="128m" /-->  <!-- I ran out of memory with these .. linux x86_64 6u14 -->
+     <property name="javac.memorymax"  value="512m" /> 
+ 
+-    <property name="gluegen.excludes.all" value="${gluegen.excludes.nsig}" />
++    <property name="gluegen.excludes.all" value="${gluegen.excludes.nsig} jogamp/common/os/android/**" />
+     <property name="gluegen-rt.classes" value="com/jogamp/gluegen/runtime/**"/>
+     <property name="jogamp.common.classes" value="com/jogamp/common/**"/>
+   </target>
+Index: gluegen2-2.0-rc3/src/java/com/jogamp/common/util/IOUtil.java
+===================================================================
+--- gluegen2-2.0-rc3.orig/src/java/com/jogamp/common/util/IOUtil.java	2011-10-06 14:38:04.000000000 +0200
++++ gluegen2-2.0-rc3/src/java/com/jogamp/common/util/IOUtil.java	2011-10-06 14:38:48.000000000 +0200
+@@ -42,9 +42,9 @@
+ import java.nio.ByteBuffer;
+ 
+ import jogamp.common.Debug;
+-import jogamp.common.os.android.StaticContext;
++//import jogamp.common.os.android.StaticContext;
+ 
+-import android.content.Context;
++//import android.content.Context;
+ 
+ import com.jogamp.common.nio.Buffers;
+ import com.jogamp.common.os.AndroidVersion;
+@@ -491,14 +491,14 @@
+         throws SecurityException
+     {
+         if(AndroidVersion.isAvailable) {
+-            final Context ctx = StaticContext.getContext();
++/*            final Context ctx = StaticContext.getContext();
+             if(null != ctx) {
+                 final File tmpRoot = ctx.getDir("temp", Context.MODE_WORLD_READABLE);
+                 if(DEBUG) {
+                     System.err.println("IOUtil.getTempRoot(Android): temp dir: "+tmpRoot.getAbsolutePath());
+                 }
+                 return tmpRoot;
+-            }
++                }*/
+         }
+         final String tmpRootName = System.getProperty("java.io.tmpdir");
+         final File tmpRoot = new File(tmpRootName);
+Index: gluegen2-2.0-rc3/src/java/com/jogamp/common/util/JogampVersion.java
+===================================================================
+--- gluegen2-2.0-rc3.orig/src/java/com/jogamp/common/util/JogampVersion.java	2011-10-06 14:37:11.000000000 +0200
++++ gluegen2-2.0-rc3/src/java/com/jogamp/common/util/JogampVersion.java	2011-10-06 14:37:43.000000000 +0200
+@@ -29,7 +29,7 @@
+ package com.jogamp.common.util;
+ 
+ import com.jogamp.common.GlueGenVersion;
+-import com.jogamp.common.os.AndroidVersion;
++//import com.jogamp.common.os.AndroidVersion;
+ import com.jogamp.common.os.Platform;
+ 
+ import java.util.Iterator;
+@@ -37,7 +37,7 @@
+ import java.util.jar.Attributes;
+ import java.util.jar.Manifest;
+ 
+-import jogamp.common.os.android.PackageInfoUtil;
++//import jogamp.common.os.android.PackageInfoUtil;
+ 
+ public class JogampVersion {
+ 
+@@ -50,7 +50,7 @@
+     private Attributes mainAttributes;
+     private Set/*<Attributes.Name>*/ mainAttributeNames;
+     
+-    private final String androidPackageVersionName;
++    private final String androidPackageVersionName = null;
+     
+     protected JogampVersion(String packageName, Manifest mf) {        
+         this.packageName = packageName;
+@@ -58,11 +58,11 @@
+         this.hash = this.mf.hashCode();
+         mainAttributes = this.mf.getMainAttributes();
+         mainAttributeNames = mainAttributes.keySet();
+-        if(AndroidVersion.isAvailable) {
++/*        if(AndroidVersion.isAvailable) {
+             androidPackageVersionName = PackageInfoUtil.getPackageInfoVersionName(packageName);
+         } else {
+             androidPackageVersionName = null;
+-        }
++            }*/
+     }
+ 
+     @Override

@@ -1,0 +1,43 @@
+Index: gluegen2-2.0-rc3/src/java/com/jogamp/common/os/Platform.java
+===================================================================
+--- gluegen2-2.0-rc3.orig/src/java/com/jogamp/common/os/Platform.java	2011-10-06 15:01:59.000000000 +0200
++++ gluegen2-2.0-rc3/src/java/com/jogamp/common/os/Platform.java	2011-10-06 15:07:28.000000000 +0200
+@@ -191,6 +191,16 @@
+             CPU_ARCH = CPUType.PA_RISC2_0;
+         } else if( ARCH_lower.equals("ppc") ) {
+             CPU_ARCH = CPUType.PPC;
++        } else if( ARCH_lower.equals("alpha") ) {
++            CPU_ARCH = CPUType.ALPHA;
++        } else if( ARCH_lower.equals("hppa") ) {
++            CPU_ARCH = CPUType.HPPA;
++        } else if( ARCH_lower.equals("mips") ) {
++            CPU_ARCH = CPUType.MIPS;
++        } else if( ARCH_lower.equals("mipsel") ) {
++            CPU_ARCH = CPUType.MIPSEL;
++        } else if( ARCH_lower.equals("s390") ) {
++            CPU_ARCH = CPUType.S390;
+         } else {
+             throw new RuntimeException("Please port CPU detection to your platform (" + OS_lower + "/" + ARCH_lower + ")");
+         }               
+@@ -440,6 +450,21 @@
+             case PPC:
+                 _os_and_arch = "ppc"; // TODO: sync with gluegen-cpptasks-base.xml
+                 break;
++            case ALPHA:
++                _os_and_arch = "alpha"; 
++                break;
++            case HPPA:
++                _os_and_arch = "hppa"; 
++                break;
++            case MIPS:
++                _os_and_arch = "mips"; 
++                break;
++            case MIPSEL:
++                _os_and_arch = "mipsel"; 
++                break;
++            case S390:
++                _os_and_arch = "s390"; 
++                break;
+             case X86_64:
+                 _os_and_arch = "amd64";
+                 break;

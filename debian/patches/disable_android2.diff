@@ -1,0 +1,141 @@
+Index: gluegen-v2.0-rc8/make/build.xml
+===================================================================
+--- gluegen-v2.0-rc8.orig/make/build.xml	2012-05-15 14:31:28.000000000 +0200
++++ gluegen-v2.0-rc8/make/build.xml	2012-05-15 15:28:39.000000000 +0200
+@@ -131,7 +131,7 @@
+ 
+     <property name="jogamp.android-launcher.classes" value="jogamp/android/launcher/**"/>
+     <property name="jogamp.awt.classes" value="jogamp/common/awt/**"/>
+-    <property name="gluegen.excludes.all" value="${gluegen.excludes.nsig} ${jogamp.android-launcher.classes}" />
++    <property name="gluegen.excludes.all" value="${gluegen.excludes.nsig} ${jogamp.android-launcher.classes} jogamp/common/os/android/**" />
+     <property name="gluegen-rt.classes" value="com/jogamp/gluegen/runtime/**"/>
+     <property name="jogamp.common.classes" value="com/jogamp/common/** jogamp/common/**"/>
+   </target>
+@@ -638,8 +638,11 @@
+     </antcall>
+ 
+     <!-- Build GlueGen using the generated Java files along with the
+-      - original source. -->
+-
++         - original source. -->
++    <delete>
++      <fileset dir="${src.java}/jogamp/common/os/android/"/>
++    </delete>
++    
+     <!--compile gluegen-rt first-->
+     <javac destdir="${classes}"
+            includeAntRuntime="false"
+Index: gluegen-v2.0-rc8/src/java/com/jogamp/common/util/IOUtil.java
+===================================================================
+--- gluegen-v2.0-rc8.orig/src/java/com/jogamp/common/util/IOUtil.java	2012-05-15 14:29:21.000000000 +0200
++++ gluegen-v2.0-rc8/src/java/com/jogamp/common/util/IOUtil.java	2012-05-15 14:50:46.000000000 +0200
+@@ -44,13 +44,13 @@
+ import java.nio.ByteBuffer;
+ 
+ import jogamp.common.Debug;
+-import jogamp.common.os.android.StaticContext;
++//import jogamp.common.os.android.StaticContext;
+ 
+-import android.content.Context;
++//import android.content.Context;
+ 
+ import com.jogamp.common.net.AssetURLContext;
+ import com.jogamp.common.nio.Buffers;
+-import com.jogamp.common.os.AndroidVersion;
++//import com.jogamp.common.os.AndroidVersion;
+ import com.jogamp.common.os.MachineDescription;
+ import com.jogamp.common.os.Platform;
+ 
+@@ -648,19 +648,19 @@
+     public static File getTempRoot(AccessControlContext acc)
+         throws SecurityException, RuntimeException
+     {
+-        if(AndroidVersion.isAvailable) {
+-            final Context ctx = StaticContext.getContext();
+-            if(null != ctx) {
+-                final File tmpRoot = ctx.getDir("temp", Context.MODE_WORLD_READABLE);
+-                if(null==tmpRoot|| !tmpRoot.isDirectory() || !tmpRoot.canWrite()) {
+-                    throw new RuntimeException("Not a writable directory: '"+tmpRoot+"', retrieved Android static context");
+-                }
+-                if(DEBUG) {
+-                    System.err.println("IOUtil.getTempRoot(Android): temp dir: "+tmpRoot.getAbsolutePath());
+-                }
+-                return tmpRoot;
+-            }
+-        }
++        // if(AndroidVersion.isAvailable) {
++        //     final Context ctx = StaticContext.getContext();
++        //     if(null != ctx) {
++        //         final File tmpRoot = ctx.getDir("temp", Context.MODE_WORLD_READABLE);
++        //         if(null==tmpRoot|| !tmpRoot.isDirectory() || !tmpRoot.canWrite()) {
++        //             throw new RuntimeException("Not a writable directory: '"+tmpRoot+"', retrieved Android static context");
++        //         }
++        //         if(DEBUG) {
++        //             System.err.println("IOUtil.getTempRoot(Android): temp dir: "+tmpRoot.getAbsolutePath());
++        //         }
++        //         return tmpRoot;
++        //     }
++        // }
+         final String tmpRootName = PropertyAccess.getProperty(java_io_tmpdir_propkey, false, acc);
+         if(null == tmpRootName || 0 == tmpRootName.length()) {
+             throw new RuntimeException("Property '"+java_io_tmpdir_propkey+"' value is empty: <"+tmpRootName+">");
+@@ -670,7 +670,7 @@
+             throw new RuntimeException("Not a writable directory: '"+tmpRoot+"', retrieved by propery '"+java_io_tmpdir_propkey+"'");
+         }
+         if(DEBUG) {
+-            System.err.println("IOUtil.getTempRoot(isAndroid: "+AndroidVersion.isAvailable+"): temp dir: "+tmpRoot.getAbsolutePath());
++//            System.err.println("IOUtil.getTempRoot(isAndroid: "+AndroidVersion.isAvailable+"): temp dir: "+tmpRoot.getAbsolutePath());
+         }
+         return tmpRoot;
+     }
+Index: gluegen-v2.0-rc8/src/java/com/jogamp/common/util/JogampVersion.java
+===================================================================
+--- gluegen-v2.0-rc8.orig/src/java/com/jogamp/common/util/JogampVersion.java	2012-05-15 14:29:21.000000000 +0200
++++ gluegen-v2.0-rc8/src/java/com/jogamp/common/util/JogampVersion.java	2012-05-15 15:29:41.000000000 +0200
+@@ -29,7 +29,7 @@
+ package com.jogamp.common.util;
+ 
+ import com.jogamp.common.GlueGenVersion;
+-import com.jogamp.common.os.AndroidVersion;
++//import com.jogamp.common.os.AndroidVersion;
+ import com.jogamp.common.os.Platform;
+ 
+ import java.util.Iterator;
+@@ -37,7 +37,7 @@
+ import java.util.jar.Attributes;
+ import java.util.jar.Manifest;
+ 
+-import jogamp.common.os.android.PackageInfoUtil;
++//import jogamp.common.os.android.PackageInfoUtil;
+ 
+ public class JogampVersion {
+ 
+@@ -58,11 +58,11 @@
+         this.hash = this.mf.hashCode();
+         mainAttributes = this.mf.getMainAttributes();
+         mainAttributeNames = mainAttributes.keySet();
+-        if(AndroidVersion.isAvailable) {
+-            androidPackageVersionName = PackageInfoUtil.getPackageInfoVersionName(packageName);
+-        } else {
++//        if(AndroidVersion.isAvailable) {
++//            androidPackageVersionName = PackageInfoUtil.getPackageInfoVersionName(packageName);
++//        } else {
+             androidPackageVersionName = null;
+-        }
++///        }
+     }
+ 
+     @Override
+@@ -109,9 +109,9 @@
+     }
+ 
+     public final String getExtensionName() {
+-        if(null != androidPackageVersionName) {
+-            return packageName;
+-        }
++//        if(null != androidPackageVersionName) {
++//            return packageName;
++//        }
+         return this.getAttribute(Attributes.Name.EXTENSION_NAME);
+     }
+ 

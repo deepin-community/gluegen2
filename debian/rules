@@ -1,0 +1,41 @@
+#!/usr/bin/make -f
+
+include /usr/share/dpkg/pkg-info.mk
+
+ifeq ($(DEB_HOST_ARCH),armhf)
+EXTRA_ANT_ARGS = -DisAbiEabiGnuArmhf=true
+endif
+
+export CLASSPATH=/usr/share/java/jsr305.jar:/usr/share/java/ant-contrib-cpptasks.jar
+
+%:
+	dh $@ --buildsystem=ant --with maven-repo-helper
+
+override_dh_auto_configure:
+	-mv src/junit/com/jogamp/junit/util/VersionSemanticsUtil.java  src/junit/com/jogamp/junit/util/VersionSemanticsUtil.java.disabled
+	-mv src/junit/com/jogamp/common/util/TestVersionSemantics.java src/junit/com/jogamp/common/util/TestVersionSemantics.java.disabled
+
+override_dh_auto_build:
+	dh_auto_build -- -f make/build.xml all javadoc $(EXTRA_ANT_ARGS)
+
+override_dh_auto_test:
+	ANT_PATH=/usr/share/ant make/scripts/runtest.sh build
+
+override_dh_install-indep:
+	dh_install -i
+
+	install -m 644 -D build/gluegen.jar debian/libgluegen2-build-java/usr/share/java/gluegen2-$(DEB_VERSION_UPSTREAM).jar
+	ln -s gluegen2-$(DEB_VERSION_UPSTREAM).jar debian/libgluegen2-build-java/usr/share/java/gluegen2.jar
+
+	find debian/libgluegen2-build-java/usr/share/gluegen2/ -type f -exec chmod a-x {} \;
+
+	chmod +x debian/libgluegen2-build-java/usr/share/gluegen2/make/scripts/*.sh
+
+	rm debian/libgluegen2-build-java/usr/share/gluegen2/src/java/com/jogamp/gluegen/cgram/license.txt
+
+override_dh_auto_clean:
+	-mv src/junit/com/jogamp/junit/util/VersionSemanticsUtil.java.disabled  src/junit/com/jogamp/junit/util/VersionSemanticsUtil.java
+	-mv src/junit/com/jogamp/common/util/TestVersionSemantics.java.disabled src/junit/com/jogamp/common/util/TestVersionSemantics.java
+
+get-orig-pom:
+	wget https://repo1.maven.org/maven2/org/jogamp/gluegen/gluegen-rt/$(DEB_VERSION_UPSTREAM)/gluegen-rt-$(DEB_VERSION_UPSTREAM).pom -O debian/pom-gluegen-rt.xml
