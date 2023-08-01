@@ -17,7 +17,7 @@ Build-Depends:
 Standards-Version: 4.5.1
 Vcs-Git: https://salsa.debian.org/java-team/gluegen2.git
 Vcs-Browser: https://salsa.debian.org/java-team/gluegen2
-Homepage: http://jogamp.org
+Homepage: https://jogamp.org
 
 Package: libgluegen2-rt-java
 Architecture: all

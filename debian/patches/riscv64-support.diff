@@ -1,0 +1,268 @@
+Description: Support building the package on riscv64
+Author: Bo YU <tsu.yubo@gmail.com>
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014852
+
+--- a/make/gluegen-cpptasks-base.xml
++++ b/make/gluegen-cpptasks-base.xml
+@@ -55,6 +55,7 @@
+    -   isLinuxPpc64
+    -   isLinuxPpc64le
+    -   isLinuxAarch64
++   -   isLinuxRiscv64
+    -   isLinuxs390
+    -   isLinuxs390x
+    -   isLinuxSparc
+@@ -147,6 +148,7 @@
+    -   compiler.cfg.linux.ppc64
+    -   compiler.cfg.linux.ppc64le
+    -   compiler.cfg.linux.aarch64
++   -   compiler.cfg.linux.riscv64
+    -   compiler.cfg.linux.s390
+    -   compiler.cfg.linux.s390x
+    -   compiler.cfg.linux.sparc
+@@ -174,6 +176,7 @@
+    -   linker.cfg.linux.mips64el
+    -   linker.cfg.linux.ppc
+    -   linker.cfg.linux.ppc64le
++   -   linker.cfg.linux.riscv64
+    -   linker.cfg.linux.s390
+    -   linker.cfg.linux.s390x
+    -   linker.cfg.linux.sparc
+@@ -504,6 +507,12 @@
+     <condition property="aarch64">
+       <os arch="aarch64" />
+     </condition>
++    <condition property="isLinuxRiscv64">
++      <and>
++        <istrue value="${isLinux}" />
++        <os arch="riscv64" />
++      </and>
++    </condition>
+     <condition property="isLinuxs390">
+       <and>
+         <istrue value="${isLinux}" />
+@@ -695,6 +704,7 @@
+     <echo message="LinuxPpc64=${isLinuxPpc64}" />
+     <echo message="LinuxPpc64le=${isLinuxPpc64le}" />
+     <echo message="LinuxAarch64=${isLinuxAarch64}" />
++    <echo message="LinuxRiscv64=${isLinuxRiscv64}" />
+     <echo message="Linuxs390=${isLinuxs390}" />
+     <echo message="Linuxs390x=${isLinuxs390x}" />
+     <echo message="LinuxSparc=${isLinuxSparc}" />
+@@ -801,6 +811,10 @@
+     <property name="os.and.arch" value="linux-ppc64le" />
+   </target>
+ 
++  <target name="gluegen.cpptasks.detect.os.linux.riscv64" unless="gluegen.cpptasks.detected.os.2" if="isLinuxRiscv64">
++    <property name="os.and.arch" value="linux-riscv64" />
++  </target>
++
+   <target name="gluegen.cpptasks.detect.os.linux.s390" unless="gluegen.cpptasks.detected.os.2" if="isLinuxs390">
+     <property name="os.and.arch" value="linux-s390" />
+   </target>
+@@ -825,7 +839,7 @@
+     <property name="os.and.arch" value="android-aarch64" />
+   </target>
+ 
+-  <target name="gluegen.cpptasks.detect.os.linux" depends="gluegen.cpptasks.detect.os.linux.amd64,gluegen.cpptasks.detect.os.linux.ia64,gluegen.cpptasks.detect.os.linux.x86,gluegen.cpptasks.detect.os.linux.armv6.armel,gluegen.cpptasks.detect.os.linux.armv6.armhf,gluegen.cpptasks.detect.os.android.armv6.armel,gluegen.cpptasks.detect.os.linux.aarch64,gluegen.cpptasks.detect.os.android.armv6.armhf,gluegen.cpptasks.detect.os.android.aarch64,gluegen.cpptasks.detect.os.linux.alpha,gluegen.cpptasks.detect.os.linux.hppa,gluegen.cpptasks.detect.os.linux.mips,gluegen.cpptasks.detect.os.linux.mipsel,gluegen.cpptasks.detect.os.linux.mipsn32,gluegen.cpptasks.detect.os.linux.mipsn32el,gluegen.cpptasks.detect.os.linux.mips64,gluegen.cpptasks.detect.os.linux.mips64el,gluegen.cpptasks.detect.os.linux.ppc,gluegen.cpptasks.detect.os.linux.ppc64,gluegen.cpptasks.detect.os.linux.ppc64le,gluegen.cpptasks.detect.os.linux.s390,gluegen.cpptasks.detect.os.linux.s390x,gluegen.cpptasks.detect.os.linux.sparc" unless="gluegen.cpptasks.detected.os.2" />
++  <target name="gluegen.cpptasks.detect.os.linux" depends="gluegen.cpptasks.detect.os.linux.amd64,gluegen.cpptasks.detect.os.linux.ia64,gluegen.cpptasks.detect.os.linux.x86,gluegen.cpptasks.detect.os.linux.armv6.armel,gluegen.cpptasks.detect.os.linux.armv6.armhf,gluegen.cpptasks.detect.os.android.armv6.armel,gluegen.cpptasks.detect.os.linux.aarch64,gluegen.cpptasks.detect.os.android.armv6.armhf,gluegen.cpptasks.detect.os.android.aarch64,gluegen.cpptasks.detect.os.linux.alpha,gluegen.cpptasks.detect.os.linux.hppa,gluegen.cpptasks.detect.os.linux.mips,gluegen.cpptasks.detect.os.linux.mipsel,gluegen.cpptasks.detect.os.linux.mipsn32,gluegen.cpptasks.detect.os.linux.mipsn32el,gluegen.cpptasks.detect.os.linux.mips64,gluegen.cpptasks.detect.os.linux.mips64el,gluegen.cpptasks.detect.os.linux.ppc,gluegen.cpptasks.detect.os.linux.ppc64,gluegen.cpptasks.detect.os.linux.ppc64le,gluegen.cpptasks.detect.os.linux.riscv64,gluegen.cpptasks.detect.os.linux.s390,gluegen.cpptasks.detect.os.linux.s390x,gluegen.cpptasks.detect.os.linux.sparc" unless="gluegen.cpptasks.detected.os.2" />
+ 
+   <target name="gluegen.cpptasks.detect.os.osx" unless="gluegen.cpptasks.detected.os.2" if="isOSX">
+     <property name="native.library.suffix"     value="*lib" />
+@@ -1397,6 +1411,9 @@
+     <linker id="linker.cfg.linux.ppc64le" name="${gcc.compat.compiler}">
+     </linker>
+ 
++    <linker id="linker.cfg.linux.riscv64" name="${gcc.compat.compiler}">
++    </linker>
++
+     <linker id="linker.cfg.linux.s390" name="${gcc.compat.compiler}">
+     </linker>
+ 
+@@ -1678,6 +1695,13 @@
+       <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/ppc64le" />
+     </target>
+ 
++    <target name="gluegen.cpptasks.declare.compiler.linux.riscv64" if="isLinuxRiscv64">
++      <echo message="Linux.Riscv64" />
++      <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" />
++      <property name="linker.cfg.id.base"            value="linker.cfg.linux" />
++      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/riscv64" />
++    </target>
++
+     <target name="gluegen.cpptasks.declare.compiler.linux.s390" if="isLinuxs390">
+       <echo message="Linux.s390" />
+       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
+@@ -1699,7 +1723,7 @@
+       <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/sparc" />
+     </target>
+ 
+-    <target name="gluegen.cpptasks.declare.compiler.linux" depends="gluegen.cpptasks.declare.compiler.linux.x86,gluegen.cpptasks.declare.compiler.linux.amd64,gluegen.cpptasks.declare.compiler.linux.ia64,gluegen.cpptasks.declare.compiler.linux.armv6,gluegen.cpptasks.declare.compiler.linux.aarch64,gluegen.cpptasks.declare.compiler.linux.alpha,gluegen.cpptasks.declare.compiler.linux.hppa,gluegen.cpptasks.declare.compiler.linux.mips,gluegen.cpptasks.declare.compiler.linux.mipsel,gluegen.cpptasks.declare.compiler.linux.mipsn32,gluegen.cpptasks.declare.compiler.linux.mipsn32el,gluegen.cpptasks.declare.compiler.linux.mips64,gluegen.cpptasks.declare.compiler.linux.mips64el,gluegen.cpptasks.declare.compiler.linux.ppc,gluegen.cpptasks.declare.compiler.linux.ppc64,gluegen.cpptasks.declare.compiler.linux.ppc64le,gluegen.cpptasks.declare.compiler.linux.s390,gluegen.cpptasks.declare.compiler.linux.s390x,gluegen.cpptasks.declare.compiler.linux.sparc" if="isLinux">
++    <target name="gluegen.cpptasks.declare.compiler.linux" depends="gluegen.cpptasks.declare.compiler.linux.x86,gluegen.cpptasks.declare.compiler.linux.amd64,gluegen.cpptasks.declare.compiler.linux.ia64,gluegen.cpptasks.declare.compiler.linux.armv6,gluegen.cpptasks.declare.compiler.linux.aarch64,gluegen.cpptasks.declare.compiler.linux.alpha,gluegen.cpptasks.declare.compiler.linux.hppa,gluegen.cpptasks.declare.compiler.linux.mips,gluegen.cpptasks.declare.compiler.linux.mipsel,gluegen.cpptasks.declare.compiler.linux.mipsn32,gluegen.cpptasks.declare.compiler.linux.mipsn32el,gluegen.cpptasks.declare.compiler.linux.mips64,gluegen.cpptasks.declare.compiler.linux.mips64el,gluegen.cpptasks.declare.compiler.linux.ppc,gluegen.cpptasks.declare.compiler.linux.ppc64,gluegen.cpptasks.declare.compiler.linux.ppc64le,gluegen.cpptasks.declare.compiler.linux.riscv64,gluegen.cpptasks.declare.compiler.linux.s390,gluegen.cpptasks.declare.compiler.linux.s390x,gluegen.cpptasks.declare.compiler.linux.sparc" if="isLinux">
+         <property name="java.includes.dir.platform" value="${java.includes.dir}/x11" />
+     </target>
+ 
+--- /dev/null
++++ b/make/scripts/make.gluegen.all.linux-riscv64.sh
+@@ -0,0 +1,24 @@
++#! /bin/sh
++
++#    -Dc.compiler.debug=true \
++#    -Dgluegen.cpptasks.detected.os=true \
++#    -DisUnix=true \
++#    -DisLinux=true \
++#    -DisLinuxX86=true \
++#    -DisX11=true \
++
++MACHINE=riscv64
++ARCH=riscv64
++TRIPLET=riscv64-linux-gnu
++
++export TARGET_PLATFORM_LIBS=/usr/lib/$TRIPLET
++export TARGET_JAVA_LIBS=/usr/lib/jvm/java-7-openjdk-$ARCH/jre/lib/$MACHINE
++
++export GLUEGEN_CPPTASKS_FILE="lib/gluegen-cpptasks-linux-$MACHINE.xml"
++
++#export JOGAMP_JAR_CODEBASE="Codebase: *.jogamp.org"
++export JOGAMP_JAR_CODEBASE="Codebase: *.goethel.localnet"
++
++ant \
++    -Drootrel.build=build-linux-$MACHINE \
++    $* 2>&1 | tee make.gluegen.all.linux-$MACHINE.log
+--- a/src/java/com/jogamp/common/os/MachineDataInfo.java
++++ b/src/java/com/jogamp/common/os/MachineDataInfo.java
+@@ -73,6 +73,7 @@
+   private final static int[] align_sparc_32_sunos =  { 1,   2,   4,   8,   4,    4,     4,     8,      8,   4 };
+   private final static int[] align_x86_32_windows =  { 1,   2,   4,   8,   4,    4,     4,     8,      4,   4 };
+   private final static int[] align_lp64_unix      =  { 1,   2,   4,   8,   4,    8,     4,     8,     16,   8 };
++  //private final static int[] align_riscv_64_unix  =  { 1,   2,   4,   8,   4,    8,     4,     8,     16,   8 };
+   private final static int[] align_s390_64_unix   =  { 1,   2,   4,   8,   4,    8,     4,     8,      8,   8 };
+   private final static int[] align_x86_64_windows =  { 1,   2,   4,   8,   4,    4,     4,     8,     16,   8 };
+ 
+@@ -109,11 +110,13 @@
+       X86_32_WINDOWS( size_x86_32_windows, align_x86_32_windows),
+       /** LP64 Unix, e.g.: {@link Platform.CPUType#X86_64} Unix, {@link Platform.CPUType#ARM64} EABI, {@link Platform.CPUType#PPC64} Unix, .. */
+       LP64_UNIX(      size_lp64_unix,    align_lp64_unix),
++      /** {@link Platform.CPUType#RISCV64} Unix */
++      // RISCV_64_UNIX(    size_lp64_unix,   align_riscv_64_unix),
+       /** {@link Platform.CPUType#S390X} Unix */
+       S390_64_UNIX(    size_lp64_unix,   align_s390_64_unix),
+       /** {@link Platform.CPUType#X86_64} Windows */
+       X86_64_WINDOWS( size_x86_64_windows, align_x86_64_windows);
+-      // 9
++      // 10
+ 
+       public final MachineDataInfo md;
+ 
+--- a/src/java/com/jogamp/common/os/Platform.java
++++ b/src/java/com/jogamp/common/os/Platform.java
+@@ -70,6 +70,8 @@
+         PPC,
+         /** SPARC */
+         SPARC,
++	/** RISCV */
++	RISCV,
+         /** Mips */
+         MIPS,
+         /** PA RISC */
+@@ -113,6 +115,8 @@
+         X86_64(    CPUFamily.X86,     false),
+         /** PPC 64bit default, usually big endian */
+         PPC64(     CPUFamily.PPC,     false),
++        /** RISCV64 64bit, little endian */
++        RISCV_64(   CPUFamily.RISCV,    false),
+         /** MIPS 64bit, big endian (mips64) or little endian (mipsel64) ? */
+         MIPS_64(   CPUFamily.MIPS,    false),
+         /** Itanium 64bit default, little endian */
+@@ -121,11 +125,11 @@
+         SPARCV9_64(CPUFamily.SPARC,   false),
+         /** PA_RISC2_0 64bit, ??? endian */
+         PA_RISC2_0(CPUFamily.PA_RISC, false),
+-        // 17
++        // 18
+ 
+         /** S390X 64bit big endian */
+         S390X(CPUFamily.S390, true);
+-	// 18
++	// 19
+ 
+         public final CPUFamily family;
+         public final boolean is32Bit;
+@@ -205,6 +209,8 @@
+                 return MIPS_64;
+             } else if( cpuABILower.startsWith("mips") ) {
+                 return MIPS_32;
++            } else if( cpuABILower.startsWith("riscv64") ) {
++                return RISCV_64;
+             } else if( cpuABILower.startsWith("superh") ) {
+                 return SuperH;
+             } else if( cpuABILower.equals("s390x") ) {
+--- a/src/java/jogamp/common/os/PlatformPropsImpl.java
++++ b/src/java/jogamp/common/os/PlatformPropsImpl.java
+@@ -527,6 +527,7 @@
+      *   <li>linux-ia64</li>
+      *   <li>linux-sparcv9</li>
+      *   <li>linux-risc2.0</li>
++     *   <li>linux-riscv64</li>
+      *   <li>linux-s390x</li>
+      *   <li>freebsd-i586</li>
+      *   <li>freebsd-amd64</li>
+@@ -594,6 +595,9 @@
+             case PA_RISC2_0:
+                 _and_arch_tmp = "risc2.0";
+                 break;
++            case RISCV_64:
++                _and_arch_tmp = "riscv64";
++                break;
+             case S390X:
+                 _and_arch_tmp = "s390x";
+                 break;
+--- a/src/java/jogamp/common/os/elf/ElfHeaderPart1.java
++++ b/src/java/jogamp/common/os/elf/ElfHeaderPart1.java
+@@ -311,6 +311,7 @@
+     public static final short EM_TILEPRO = 188;
+     public static final short EM_MICROBLAZE = 189;
+     public static final short EM_CUDA = 190;
++    public static final short EM_RISCV = 243;
+ 
+     public static final boolean isIdentityValid(final byte[] ident) {
+         return ELFMAG0 == ident[0] &&
+@@ -412,6 +413,14 @@
+                 cpuName = "ppc64";
+                 abiType = ABIType.GENERIC_ABI;
+                 break;
++            case EM_RISCV:
++		if ( 64 == getArchClassBits() ) {
++		     cpuName = "riscv64";
++		} else {
++		     cpuName = "riscv";
++		}
++                abiType = ABIType.GENERIC_ABI;
++                break;
+             case EM_S390:
+                  // Can be 32 or 64 bits
+                 if( 64 == getArchClassBits() ) {
+--- a/make/build.xml
++++ b/make/build.xml
+@@ -346,6 +346,12 @@
+       <property name="linker.cfg.id"                        value="linker.cfg.linux.aarch64" />
+     </target>
+ 
++    <target name="declare.linux.riscv64" if="isLinuxRiscv64">
++      <echo message="Linux.riscv64" />
++      <property name="compiler.cfg.id"                      value="compiler.cfg.linux" />
++      <property name="linker.cfg.id"                        value="linker.cfg.linux.riscv64" />
++    </target>
++
+     <target name="declare.linux.s390" if="isLinuxs390">
+       <echo message="Linux.s390" />
+       <property name="compiler.cfg.id"                      value="compiler.cfg.linux" /> 
+@@ -364,7 +370,7 @@
+       <property name="linker.cfg.id"                        value="linker.cfg.linux.sparc" /> 
+     </target>
+     
+-    <target name="declare.linux" depends="declare.linux.x86,declare.linux.amd64,declare.linux.alpha,declare.linux.ia64,declare.linux.hppa,declare.linux.mips,declare.linux.mipsel,declare.linux.mipsn32,declare.linux.mipsn32el,declare.linux.mips64,declare.linux.mips64el,declare.linux.ppc,declare.linux.ppc64,declare.linux.ppc64le,declare.linux.aarch64,declare.linux.s390,declare.linux.s390x,declare.linux.sparc,declare.linux.armv6.armel,declare.linux.armv6.armhf" if="isLinux" >
++    <target name="declare.linux" depends="declare.linux.x86,declare.linux.amd64,declare.linux.alpha,declare.linux.ia64,declare.linux.hppa,declare.linux.mips,declare.linux.mipsel,declare.linux.mipsn32,declare.linux.mipsn32el,declare.linux.mips64,declare.linux.mips64el,declare.linux.ppc,declare.linux.ppc64,declare.linux.ppc64le,declare.linux.aarch64,declare.linux.s390,declare.linux.riscv64,declare.linux.s390x,declare.linux.sparc,declare.linux.armv6.armel,declare.linux.armv6.armhf" if="isLinux" >
+       <property name="c.src.dir.os"                         value="unix" />
+     </target>
+ 
