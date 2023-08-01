@@ -29,3 +29,7 @@ rtjar.diff
 add-mips64el-mipsn32-support.diff
 java10-compatibility.patch
 fix_gcc-10.patch
+riscv64-support.diff
+
+# deepin
+loongarch64.diff
