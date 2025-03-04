@@ -43,7 +43,8 @@ public class JCPP implements GenericCPP {
     private final List<String> includePaths;
     private final boolean enableCopyOutput2Stderr;
 
-    public JCPP(final List<String> includePaths, final boolean debug, final boolean copyOutput2Stderr) {
+    public JCPP(final List<String> includePaths, final boolean debug, final boolean copyOutput2Stderr,
+                final boolean enablePragmaOnce) {
         LOG = Logging.getLogger(JCPP.class);
         setOut(System.out);
         this.includePaths = includePaths;
@@ -53,8 +54,12 @@ public class JCPP implements GenericCPP {
         cpp.addFeature(Feature.DIGRAPHS);
         cpp.addFeature(Feature.TRIGRAPHS);
         cpp.addFeature(Feature.LINEMARKERS);
+        cpp.addFeature(Feature.UNIFIED_OUTPUT);
         cpp.addFeature(Feature.CSYNTAX);
         cpp.addFeature(Feature.KEEPCOMMENTS);
+        if (enablePragmaOnce) {
+            cpp.addFeature(Feature.PRAGMA_ONCE);
+        }
         cpp.addWarning(Warning.IMPORT);
         cpp.setListener(new DefaultPreprocessorListener() {
             @Override

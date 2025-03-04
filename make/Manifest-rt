@@ -8,6 +8,11 @@ Implementation-Version: @VERSION@
 Implementation-Build: @BUILD_VERSION@
 Implementation-Branch: @SCM_BRANCH@
 Implementation-Commit: @SCM_COMMIT@
+Implementation-SHA-Sources: @SHA_SOURCES@
+Implementation-SHA-Classes: @SHA_CLASSES@
+Implementation-SHA-Classes-this: @SHA_CLASSES_THIS@
+Implementation-SHA-Natives: @SHA_NATIVES@
+Implementation-SHA-Natives-this: @SHA_NATIVES_THIS@
 Implementation-Vendor: JogAmp Community
 Implementation-Vendor-Id: com.jogamp
 Implementation-URL: http://jogamp.org/

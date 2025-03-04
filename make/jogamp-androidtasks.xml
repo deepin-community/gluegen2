@@ -28,7 +28,7 @@
             jarbuilddir="${build}"   // jar build location
             jarbasename="gluegen-rt" // jar base file name
             nativebuilddir="${gluegen.lib.dir}" // native library build location
-            nativebasename="gluegen-rt"         // native library base file name "*${nativebasename}*.${native.library.suffix}"
+            nativebasename="${output.lib.name}"         // native library base file name "*${nativebasename}*.${native.library.suffix}"
             androidmanifest.path="resources/android/AndroidManifest.xml"
             androidresources.path="resources/android/res"
             jarmanifest.path="${build}/Manifest-rt.temp" // optional
@@ -65,6 +65,7 @@
       <attribute name="keystore.alias" default="${android.keystore.alias}" />
       <attribute name="keystore.storepass" default="${android.keystore.storepass}" />
       <attribute name="keystore.keypass" default="${android.keystore.keypass}" />
+      <element name="d8-classpaths" implicit="no" optional="true" />
 
       <sequential>
         <var name="m.aapt.apkbasename0" unset="true"/>
@@ -158,6 +159,7 @@
 
         <echo>aapt.signed ${m.aapt.apkbasename}: compiling R.java...</echo>
         <javac encoding="${m.aapt.java.encoding}"
+            includeAntRuntime="false"
             source="${target.sourcelevel}" 
             target="${target.targetlevel}" 
             bootclasspath="${target.rt.jar}"
@@ -171,23 +173,36 @@
                  <pathelement path="${android.jar}"/>
             </classpath>
         </javac>
+        <zip destfile="${m.aapt.build.apk}/temp/classes.zip" level="0">
+            <fileset dir="${m.aapt.build.apk}/temp/classes"/>
+        </zip>
 
         <echo>aapt.signed ${m.aapt.apkbasename}: dex'ing</echo>
-        <exec dir="." executable="dx" logError="true" failonerror="true" failifexecutionfails="true">
-            <arg line="--dex"/>
-            <arg line="--output=${m.aapt.dex.file}"/>
+        <!-- exec dir="." executable="dx" logError="true" failonerror="true" failifexecutionfails="true">
+            <arg line="- -dex"/>
+            <arg line="- -output=${m.aapt.dex.file}"/>
+            <arg line="- -min-sdk-version=${android.api.level}"/>
             <arg line="@{jarbuilddir}/@{jarbasename}.jar"/>
             <arg line="${m.aapt.build.apk}/temp/classes"/>
+        </exec -->
+        <exec dir="." executable="d8" logError="true" failonerror="true" failifexecutionfails="true">
+            <arg line="--output ${m.aapt.build.apk}/image"/>
+
+            <arg line="--classpath ${android-min.jar}"/>
+            <arg line="--classpath ${target.rt.jar}"/>
+            <d8-classpaths/>
+
+            <arg line="--min-api ${android.api.level}"/>
+
+            <!-- arg line="- -no-desugaring"/ -->
+
+            <arg line="--release"/>
+            <!-- arg line="- -debug"/ -->
+
+            <arg line="@{jarbuilddir}/@{jarbasename}.jar"/>
+            <arg line="${m.aapt.build.apk}/temp/classes.zip"/>
         </exec>
         
-        <path id="android.antlibs">
-            <pathelement path="${env.ANDROID_HOME}/tools/lib/anttasks.jar" />
-            <pathelement path="${env.ANDROID_HOME}/tools/lib/sdklib.jar" />
-            <pathelement path="${env.ANDROID_HOME}/tools/lib/androidprefs.jar" />
-            <pathelement path="${env.ANDROID_HOME}/tools/lib/apkbuilder.jar" />
-            <pathelement path="${env.ANDROID_HOME}/tools/lib/jarutils.jar" />
-        </path>
-
         <echo>aapt.signed ${m.aapt.apkbasename}: packaging</echo>
         <exec dir="." executable="aapt" logError="true" failonerror="true" failifexecutionfails="true">
             <arg line="package"/>
@@ -223,11 +238,13 @@
 
             <!-- Be Java6 keytool/jarsigner compatible, and hence Android compatible -->
             <arg value="-sigalg"/>
-            <arg value="MD5withRSA"/>
+            <arg value="SHA256withRSA"/>
             <arg value="-keyalg"/>
             <arg value="RSA"/>
             <arg value="-keysize"/>
-            <arg value="1024"/>
+            <arg value="2048"/>
+            <arg value="-validity"/>
+            <arg value="365"/>
 
             <arg value="-keystore" />
             <arg value="${m.aapt.build.apk}/debug.keystore" />
@@ -248,8 +265,8 @@
         <!-- Be Java6 keytool/jarsigner compatible, and hence Android compatible -->
         <echo>aapt.signed ${m.aapt.apkbasename}: signing w/ key @{keystore.alias} @ ${m.aapt.keystore.file}</echo>
         <!-- signjar
-              sigalg="MD5withRSA"
-              digestalg="SHA1"
+              sigalg="SHA256withRSA"
+              digestalg="SHA256"
               jar="${m.aapt.unsigned.package.file.name}"
               signedjar="${m.aapt.signed.file.name}"
               keystore="${m.aapt.keystore.file}"
@@ -261,9 +278,9 @@
         <exec dir="." executable="jarsigner" failonerror="true">
             <!-- Be Java6 keytool/jarsigner compatible, and hence Android compatible -->
             <arg value="-sigalg"/>
-            <arg value="MD5withRSA"/>
+            <arg value="SHA256withRSA"/>
             <arg value="-digestalg"/>
-            <arg value="SHA1"/>
+            <arg value="SHA256"/>
 
             <arg value="-keystore" />
             <arg value="${m.aapt.keystore.file}" />
@@ -282,7 +299,7 @@
         </exec>
 
         <echo>aapt.signed ${m.aapt.apkbasename}: zip aligning</echo>
-        <exec dir="." executable="${env.ANDROID_HOME}/build-tools/${env.ANDROID_BUILD_TOOLS_VERSION}/zipalign" failonerror="true">
+        <exec dir="." executable="zipalign" failonerror="true">
             <arg line="-v" />
             <arg value="-f" />
             <arg value="4" />

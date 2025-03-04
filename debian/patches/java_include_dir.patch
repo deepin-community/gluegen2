@@ -1,0 +1,52 @@
+Description: including jni headers from the system path, as the embedded ones
+ have a non-free license.
+Author: Pierre Gruet <pgt@debian.org>
+Forwarded: not-needed
+Last-Update: 2023-03-14
+
+--- a/make/gluegen-cpptasks-base.xml
++++ b/make/gluegen-cpptasks-base.xml
+@@ -1124,7 +1124,7 @@
+                  else="${java.home}" >
+                  <available file="${java.home}/../jre" type="dir" />
+       </condition>
+-      <property name="java.includes.dir" value="${gluegen.root.abs-path}/make/stub_includes/jni" />
++      <property name="java.includes.dir" value="/usr/lib/jvm/default-java/include" />
+       <echo message="java.home.dir      ${java.home.dir}" />
+       <echo message="java.includes.dir  ${java.includes.dir}" />
+   </target>
+@@ -1903,7 +1903,7 @@
+     </target>
+ 
+     <target name="gluegen.cpptasks.declare.compiler.linux" depends="gluegen.cpptasks.declare.compiler.linux.x86,gluegen.cpptasks.declare.compiler.linux.amd64,gluegen.cpptasks.declare.compiler.linux.ia64,gluegen.cpptasks.declare.compiler.linux.armv6,gluegen.cpptasks.declare.compiler.linux.aarch64,gluegen.cpptasks.declare.compiler.linux.alpha,gluegen.cpptasks.declare.compiler.linux.hppa,gluegen.cpptasks.declare.compiler.linux.mips,gluegen.cpptasks.declare.compiler.linux.mipsel,gluegen.cpptasks.declare.compiler.linux.mipsn32,gluegen.cpptasks.declare.compiler.linux.mipsn32el,gluegen.cpptasks.declare.compiler.linux.mips64,gluegen.cpptasks.declare.compiler.linux.mips64el,gluegen.cpptasks.declare.compiler.linux.ppc,gluegen.cpptasks.declare.compiler.linux.ppc64,gluegen.cpptasks.declare.compiler.linux.ppc64le,gluegen.cpptasks.declare.compiler.linux.riscv64,gluegen.cpptasks.declare.compiler.linux.s390,gluegen.cpptasks.declare.compiler.linux.s390x,gluegen.cpptasks.declare.compiler.linux.sparc" if="isLinux">
+-        <property name="java.includes.dir.platform" value="${java.includes.dir}/x11" />
++        <property name="java.includes.dir.platform" value="${java.includes.dir}/linux" />
+     </target>
+ 
+     <target name="gluegen.cpptasks.declare.compiler.solaris32" if="isSolaris32Bit">
+@@ -1925,7 +1925,7 @@
+     </target>
+ 
+     <target name="gluegen.cpptasks.declare.compiler.solaris" depends="gluegen.cpptasks.declare.compiler.solaris32,gluegen.cpptasks.declare.compiler.solaris.sparcv9,gluegen.cpptasks.declare.compiler.solaris.amd64" if="isSolaris">
+-      <property name="java.includes.dir.platform"    value="${java.includes.dir}/x11" />
++      <property name="java.includes.dir.platform"    value="${java.includes.dir}/linux" />
+       <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/${solaris.cpu}" 
+                                                       file="${java.home.dir}/jre/lib/${solaris.cpu}/libjava.so"/>
+       <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/${solaris.cpu}"     
+@@ -1986,14 +1986,14 @@
+     </target>
+ 
+     <target name="gluegen.cpptasks.declare.compiler.freebsd" depends="gluegen.cpptasks.declare.compiler.freebsd.x86,gluegen.cpptasks.declare.compiler.freebsd.amd64" if="isFreeBSD">
+-      <property name="java.includes.dir.platform"    value="${java.includes.dir}/x11" />
++      <property name="java.includes.dir.platform"    value="${java.includes.dir}/linux" />
+     </target>
+ 
+     <target name="gluegen.cpptasks.declare.compiler.hpux" if="isHPUX">
+       <echo message="HP-UX" />
+       <property name="compiler.cfg.id.base"          value="compiler.cfg.hpux" />
+       <property name="linker.cfg.id.base"            value="linker.cfg.hpux" />
+-      <property name="java.includes.dir.platform"    value="${java.includes.dir}/x11" />
++      <property name="java.includes.dir.platform"    value="${java.includes.dir}/linux" />
+       <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/PA_RISC2.0" 
+                                                       file="${java.home.dir}/jre/lib/PA_RISC2.0/libjava.so"/>
+       <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/PA_RISC2.0"     

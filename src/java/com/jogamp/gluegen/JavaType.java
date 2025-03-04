@@ -1,6 +1,6 @@
-/*
+/**
+ * Copyright (c) 2010-2023 JogAmp Community. All rights reserved.
  * Copyright (c) 2003 Sun Microsystems, Inc. All Rights Reserved.
- * Copyright (c) 2010 JogAmp Community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -60,11 +60,14 @@ public class JavaType {
   }
 
   private final Class<?> clazz; // Primitive types and other types representable as Class objects
+  private final String clazzName; // Future (not yet generated or existing) Class objects (existing at runtime)
   private final String structName;  // Types we're generating glue code for (i.e., C structs)
   private final Type   elementType; // Element type if this JavaType represents a C array
   private final C_PTR  primitivePointerType;
   private final boolean opaqued;
+  private final boolean pascalString;
 
+  private static JavaType objectType;
   private static JavaType nioBufferType;
   private static JavaType nioByteBufferType;
   private static JavaType nioShortBufferType;
@@ -81,24 +84,39 @@ public class JavaType {
       return false;
     }
     final JavaType t = (JavaType) arg;
-    return (this == t ||
-            (t.clazz == clazz &&
-             ((structName == null ? t.structName == null : structName.equals(t.structName)) ||
-              ((structName != null) && (t.structName != null) && (structName.equals(t.structName)))) &&
-             ((elementType == t.elementType) ||
-              (elementType != null) && (t.elementType != null) && (elementType.equals(t.elementType))) &&
-             (primitivePointerType == t.primitivePointerType)));
+    return this == t ||
+            ( t.clazz == clazz &&
+              ( ( clazzName == null ? t.clazzName == null : clazzName.equals(t.clazzName) ) ||
+                ( clazzName != null && t.clazzName != null && clazzName.equals(t.clazzName) )
+              ) &&
+              ( ( structName == null ? t.structName == null : structName.equals(t.structName) ) ||
+                ( structName != null && t.structName != null && structName.equals(t.structName) )
+              ) &&
+              ( elementType == t.elementType ||
+                ( elementType != null && t.elementType != null && elementType.equals(t.elementType) )
+              ) &&
+              primitivePointerType == t.primitivePointerType
+            );
   }
 
   @Override
   public int hashCode() {
-    if (clazz == null) {
-      if (structName == null) {
-        return 0;
-      }
-      return structName.hashCode();
+    if (clazz != null) {
+        return clazz.hashCode();
     }
-    return clazz.hashCode();
+    if (clazzName != null) {
+        return clazzName.hashCode();
+    }
+    if (structName != null) {
+        return structName.hashCode();
+    }
+    if (elementType != null) {
+        return elementType.hashCode();
+    }
+    if (primitivePointerType != null) {
+        return primitivePointerType.hashCode();
+    }
+    return 0;
   }
 
   public JavaType getElementType() {
@@ -113,7 +131,7 @@ public class JavaType {
       the emitters understand how to perform proper conversion from
       the corresponding C type. */
   public static JavaType createForOpaqueClass(final Class<?> clazz) {
-    return new JavaType(clazz, true);
+    return new JavaType(clazz, true, false);
   }
 
   /** Creates a JavaType corresponding to the given Java type. This
@@ -121,14 +139,26 @@ public class JavaType {
       the emitters understand how to perform proper conversion from
       the corresponding C type. */
   public static JavaType createForClass(final Class<?> clazz) {
-    return new JavaType(clazz, false);
+    return new JavaType(clazz, false, false);
+  }
+
+  public static JavaType createForStringClass(final Class<?> clazz, final boolean pascalString) {
+    return new JavaType(clazz, false, pascalString);
+  }
+
+  /**
+   * Creates a JavaType corresponding to the given named Java class,
+   * not necessarily existing yet.
+   */
+  public static JavaType createForNamedClass(final String name) {
+    return new JavaType(name, null);
   }
 
   /** Creates a JavaType corresponding to the specified C CompoundType
       name; for example, if "Foo" is supplied, then this JavaType
       represents a "Foo *" by way of a StructAccessor. */
   public static JavaType createForCStruct(final String name) {
-    return new JavaType(name);
+    return new JavaType(null, name);
   }
 
   /** Creates a JavaType corresponding to an array of the given
@@ -168,6 +198,13 @@ public class JavaType {
 
   public static JavaType createForJNIEnv() {
     return createForCStruct("JNIEnv");
+  }
+
+  public static JavaType forObjectClass() {
+    if (objectType == null) {
+      objectType = createForClass(java.lang.Object.class);
+    }
+    return objectType;
   }
 
   public static JavaType forNIOBufferClass() {
@@ -245,28 +282,40 @@ public class JavaType {
    * Returns the Java type name corresponding to this type.
    */
   public String getName() {
+    return getName(null);
+  }
+
+  public String getName(final JavaConfiguration cfg) {
     if (clazz != null) {
       if (clazz.isArray()) {
         return arrayName(clazz);
       }
       return clazz.getName();
     }
+    if( clazzName != null ) {
+        return (null != cfg ? (cfg.packageForStruct(clazzName) + ".") : "") + clazzName;
+    }
     if (elementType != null) {
       return elementType.getName();
     }
-    return structName;
+    return (null != cfg ? (cfg.packageForStruct(clazzName) + ".") : "") + structName;
   }
 
   /**
-   * Returns the descriptor (internal type signature) corresponding to
-   * this type.
+   * Returns the descriptor (internal type signature) corresponding to this type.
    */
   public String getDescriptor() {
-    // FIXME: this is not completely accurate at this point (for
-    // example, it knows nothing about the packages for compound
-    // types)
+    return getDescriptor(null);
+  }
+  public String getDescriptor(final JavaConfiguration cfg) {
     if (clazz != null) {
       return descriptor(clazz);
+    }
+    if( null != clazzName ) {
+        return descriptor((null != cfg ? (cfg.packageForStruct(clazzName) + ".") : "") + clazzName);
+    }
+    if( null != structName ) {
+        return descriptor((null != cfg ? (cfg.packageForStruct(structName) + ".") : "") + structName);
     }
     if (elementType != null) {
       if(elementType.getName()==null) {
@@ -274,10 +323,148 @@ public class JavaType {
       }
       return "[" + descriptor(elementType.getName());
     }
-    if( null != structName ) {
-        return descriptor(structName);
-    }
     return "ANON_NIO";
+  }
+
+  /**
+   * Returns the native (JNI) method-name descriptor corresponding to this type,
+   * i.e. replacing chars {@link #getDescriptor()} as follows
+   * <ul>
+   *   <li>`_` -> `_1`</li>
+   *   <li>`/` ->  `_`</li>
+   *   <li>`;` -> `_2`</li>
+   *   <li>`[` -> `_3`</li>
+   * </ul>
+   * @see JNI Spec 2, Chapter 2, Resolving Native Method Names
+   * @see #toJNIMethodDescriptor(String)
+   */
+  public String getJNIMethodDesciptor() {
+      return toJNIMethodDescriptor( getDescriptor() );
+  }
+
+  /**
+   * Appends the descriptor (internal type signature) corresponding to the given Class<?> c.
+   * @param buf the StringBuilder sink
+   * @param c the Class<?> to append the descriptor for
+   * @param useTrueType if true, use the actual Class<?> name for non primitives, otherwise java.lang.Object will be used (flattened)
+   * @return the given StringBuilder sink for chaining
+   */
+  public static StringBuilder appendDescriptor(final StringBuilder buf, final Class<?> c, final boolean useTrueType) {
+    if (c.isPrimitive()) {
+           if (c == Boolean.TYPE)   buf.append("Z");
+      else if (c == Byte.TYPE)      buf.append("B");
+      else if (c == Character.TYPE) buf.append("C");
+      else if (c == Short.TYPE)     buf.append("S");
+      else if (c == Integer.TYPE)   buf.append("I");
+      else if (c == Long.TYPE)      buf.append("J");
+      else if (c == Float.TYPE)     buf.append("F");
+      else if (c == Double.TYPE)    buf.append("D");
+      else throw new RuntimeException("Illegal primitive type \"" + c.getName() + "\"");
+    } else {
+      // Arrays and NIO Buffers are always passed down as java.lang.Object.
+      // The only arrays that show up as true arrays in the signature
+      // are the synthetic byte offset arrays created when passing
+      // down arrays of direct Buffers. Compound type wrappers are
+      // passed down as ByteBuffers (no good reason, just to avoid
+      // accidental conflation) so we mangle them differently.
+      if (useTrueType) {
+        if (c.isArray()) {
+          buf.append("[");
+          final Class<?> componentType = c.getComponentType();
+          // Handle arrays of compound type wrappers differently for
+          // convenience of the Java-level glue code generation
+          appendDescriptor(buf, componentType,
+                    (componentType == java.nio.ByteBuffer.class));
+        } else {
+          buf.append("L");
+          buf.append(c.getName().replace('.', '/'));
+          buf.append(";");
+        }
+      } else {
+        if (c.isArray()) {
+          buf.append("[");
+          appendDescriptor(buf, c.getComponentType(), false);
+        } else if (c == java.lang.String.class) {
+          buf.append("L");
+          buf.append(c.getName().replace('.', '/'));
+          buf.append(";");
+        } else {
+          buf.append("Ljava/lang/Object;");
+        }
+      }
+    }
+    return buf;
+  }
+
+  /**
+   * Appends the native (JNI) method-name descriptor corresponding to the given Class<?> c,
+   * i.e. replacing chars {@link #appendDescriptor(StringBuilder, Class, boolean)} as follows
+   * <ul>
+   *   <li>`_` -> `_1`</li>
+   *   <li>`/` ->  `_`</li>
+   *   <li>`;` -> `_2`</li>
+   *   <li>`[` -> `_3`</li>
+   * </ul>
+   * Only the newly appended segment to the StringBuilder sink will be converted to (JNI) method-name using {@link #toJNIMethodDescriptor(StringBuilder, int)}.
+   * @param buf the StringBuilder sink
+   * @param c the Class<?> to append the descriptor for
+   * @param useTrueType if true, use the actual Class<?> name for non primitives, otherwise java.lang.Object will be used (flattened)
+   * @return the given StringBuilder sink for chaining
+   * @see JNI Spec 2, Chapter 2, Resolving Native Method Names
+   * @see #toJNIMethodDescriptor(StringBuilder)
+   */
+  public static StringBuilder appendJNIDescriptor(final StringBuilder res, final Class<?> c, final boolean useTrueType) {
+      final int start = res.length();
+      return toJNIMethodDescriptor( appendDescriptor(res, c, useTrueType), start );
+  }
+
+  /**
+   * Converts the assumed descriptor (internal type signature) to a native (JNI) method-name descriptor,
+   * i.e. replacing chars {@link #getDescriptor()} as follows
+   * <ul>
+   *   <li>`_` -> `_1`</li>
+   *   <li>`/` ->  `_`</li>
+   *   <li>`;` -> `_2`</li>
+   *   <li>`[` -> `_3`</li>
+   * </ul>
+   * @param descriptor the char sequence holding the original descriptor
+   * @see JNI Spec 2, Chapter 2, Resolving Native Method Names
+   */
+  public static String toJNIMethodDescriptor(final String descriptor) {
+      return descriptor.replace("_", "_1")
+                       .replace("/",  "_")
+                       .replace(";", "_2")
+                       .replace("[", "_3");
+  }
+
+  /**
+   * Converts the assumed descriptor (internal type signature) to a native (JNI) method-name descriptor,
+   * i.e. replacing chars {@link #getDescriptor()} as follows
+   * <ul>
+   *   <li>`_` -> `_1`</li>
+   *   <li>`/` ->  `_`</li>
+   *   <li>`;` -> `_2`</li>
+   *   <li>`[` -> `_3`</li>
+   * </ul>
+   * @param descriptor the char buffer holding the original descriptor
+   * @param start start position of the segment to convert, use 0 if whole buffr shall be converted
+   * @return returns passed descriptor buffer for chaining
+   * @see JNI Spec 2, Chapter 2, Resolving Native Method Names
+   */
+  public static StringBuilder toJNIMethodDescriptor(final StringBuilder descriptor, final int start) {
+      replace(descriptor, start, "_", "_1");
+      replace(descriptor, start, "/",  "_");
+      replace(descriptor, start, ";", "_2");
+      replace(descriptor, start, "[", "_3");
+      return descriptor;
+  }
+  private static StringBuilder replace(final StringBuilder buf, int start, final String target, final String replacement) {
+      start = buf.indexOf(target, start);
+      while( 0 <= start ) {
+          buf.replace(start, start + target.length(), replacement);
+          start = buf.indexOf(target, start + replacement.length());
+      }
+      return buf;
   }
 
   /** Returns the String corresponding to the JNI type for this type,
@@ -292,6 +479,10 @@ public class JavaType {
     if (isArrayOfCompoundTypeWrappers()) {
       // These are returned as arrays of ByteBuffers (e.g., jobjectArray)
       return "jobjectArray /* of ByteBuffer */";
+    }
+
+    if ( clazzName != null ) {
+        return "jobject";
     }
 
     if (clazz == null) {
@@ -376,6 +567,12 @@ public class JavaType {
     return (clazz == java.lang.String.class);
   }
 
+  public boolean isPascalStringVariant() { return pascalString; }
+
+  public boolean isPascalString() {
+    return isString() && this.pascalString;
+  }
+
   public boolean isArray() {
     return ((clazz != null) && clazz.isArray());
   }
@@ -408,6 +605,9 @@ public class JavaType {
      return (clazz != null && clazz.isArray() && clazz.getComponentType() == java.lang.String.class);
   }
 
+  public boolean isPascalStringArray() {
+    return isStringArray() && this.pascalString;
+  }
 
   public boolean isPrimitive() {
     return ((clazz != null) && !isArray() && clazz.isPrimitive() && (clazz != Void.TYPE));
@@ -445,8 +645,12 @@ public class JavaType {
     return (clazz == Void.TYPE);
   }
 
+  public boolean isNamedClass() {
+    return clazzName != null;
+  }
+
   public boolean isCompoundTypeWrapper() {
-    return (clazz == null && structName != null && !isJNIEnv());
+    return structName != null && !isJNIEnv();
   }
 
   public boolean isArrayOfCompoundTypeWrappers() {
@@ -487,12 +691,12 @@ public class JavaType {
   }
 
   public boolean isJNIEnv() {
-    return clazz == null && "JNIEnv".equals(structName);
+    return "JNIEnv".equals(structName);
   }
 
   @Override
   public Object clone() {
-    return new JavaType(primitivePointerType, clazz, structName, elementType);
+    return new JavaType(primitivePointerType, clazz, clazzName, structName, elementType, pascalString);
   }
 
   @Override
@@ -510,10 +714,10 @@ public class JavaType {
       }
       sb.append(val);
   }
-  // For debugging
-  public String getDebugString() {
-    final StringBuilder sb = new StringBuilder();
-    sb.append("JType[");
+  public final StringBuilder getSignature(StringBuilder sb) {
+    if( null == sb ) {
+        sb = new StringBuilder();
+    }
     boolean prepComma = false;
     {
         final String javaTypeName = getName();
@@ -522,15 +726,15 @@ public class JavaType {
         } else {
             append(sb, "ANON", false);
         }
-        sb.append(" / ");
-        if( null != structName ) {
-            append(sb, "'"+structName+"'", prepComma); prepComma=true;
-        } else {
-            append(sb, "NIL", prepComma); prepComma=true;
-        }
     }
     if( null != clazz ) {
         append(sb, "clazz = "+clazz.getName(), prepComma); prepComma=true;
+    }
+    if( null != clazzName ) {
+        append(sb, "clazzName = "+clazzName, prepComma); prepComma=true;
+    }
+    if( null != structName ) {
+        append(sb, "struct = "+structName, prepComma); prepComma=true;
     }
     if( null != elementType ) {
         append(sb, "elementType = "+elementType, prepComma); prepComma=true;
@@ -543,7 +747,18 @@ public class JavaType {
         if( isOpaqued() ) {
             append(sb, "opaque", prepComma); prepComma=true;
         }
-        if( isArray() ) {
+        if( isString() ) {
+            if( pascalString ) {
+                sb.append("pascal ");
+            }
+            append(sb, "string", prepComma); prepComma=true;
+        }
+        if( isStringArray() ) {
+            if( pascalString ) {
+                sb.append("pascal ");
+            }
+            append(sb, "stringArray", prepComma); prepComma=true;
+        } else if( isArray() ) {
             append(sb, "array", prepComma); prepComma=true;
         }
         if( isArrayOfCompoundTypeWrappers() ) {
@@ -551,9 +766,6 @@ public class JavaType {
         }
         if( isCompoundTypeWrapper() ) {
             append(sb, "compound", prepComma); prepComma=true;
-        }
-        if( isArray() ) {
-            append(sb, "array", prepComma); prepComma=true;
         }
         if( isPrimitive() ) {
             append(sb, "primitive", prepComma); prepComma=true;
@@ -571,7 +783,16 @@ public class JavaType {
             append(sb, "C-Primitive-Pointer", prepComma); prepComma=true;
         }
     }
-    append(sb, "], descriptor '"+getDescriptor()+"']", prepComma); prepComma=true;
+    append(sb, "], descriptor '"+getDescriptor()+"'", false); prepComma=true;
+    return sb;
+  }
+
+  // For debugging
+  public String getDebugString() {
+    final StringBuilder sb = new StringBuilder();
+    sb.append("JType[");
+    getSignature(sb);
+    sb.append("]");
     return sb.toString();
   }
 
@@ -579,52 +800,81 @@ public class JavaType {
    * Constructs a representation for a type corresponding to the given Class
    * argument.
    */
-  private JavaType(final Class<?> clazz, final boolean opaqued) {
+  private JavaType(final Class<?> clazz, final boolean opaqued, final boolean pascalString) {
+    if( null == clazz ) {
+        throw new IllegalArgumentException("null clazz passed");
+    }
     this.primitivePointerType = null;
     this.clazz = clazz;
+    this.clazzName = null;
     this.structName = null;
     this.elementType = null;
     this.opaqued = opaqued;
+    this.pascalString = pascalString;
   }
 
-  /** Constructs a type representing a named C struct. */
-  private JavaType(final String structName) {
+  /** Constructs a type representing a either a named clazz or a named C struct.*/
+  private JavaType(final String clazzName, final String structName) {
+    if( null != clazzName && null != structName ) {
+      throw new IllegalArgumentException("Both clazzName and structName set");
+    }
+    if( null != clazzName ) {
+        this.clazzName = clazzName;
+        this.structName = null;
+    } else if( null != structName ) {
+        this.clazzName = null;
+        this.structName = structName;
+    } else {
+        throw new IllegalArgumentException("Neither clazzName nor structName set");
+    }
     this.primitivePointerType = null;
     this.clazz = null;
-    this.structName = structName;
     this.elementType = null;
     this.opaqued = false;
+    this.pascalString = false;
   }
 
   /** Constructs a type representing a pointer to a C primitive
       (integer, floating-point, or void pointer) type. */
   private JavaType(final C_PTR primitivePointerType) {
+    if( null == primitivePointerType ) {
+        throw new IllegalArgumentException("null primitivePointerType passed");
+    }
     this.primitivePointerType = primitivePointerType;
     this.clazz = null;
+    this.clazzName = null;
     this.structName = null;
     this.elementType = null;
     this.opaqued = false;
+    this.pascalString = false;
   }
 
   /** Constructs a type representing an array of C pointers. */
   private JavaType(final Type elementType) {
+    if( null == elementType ) {
+        throw new IllegalArgumentException("null elementType passed");
+    }
     this.primitivePointerType = null;
     this.clazz = null;
+    this.clazzName = null;
     this.structName = null;
     this.elementType = elementType;
     this.opaqued = false;
+    this.pascalString = false;
   }
 
   /** clone only */
-  private JavaType(final C_PTR primitivePointerType, final Class<?> clazz, final String name, final Type elementType) {
+  private JavaType(final C_PTR primitivePointerType, final Class<?> clazz, final String clazzName, final String structName, final Type elementType, final boolean pascalString) {
     this.primitivePointerType = primitivePointerType;
     this.clazz = clazz;
-    this.structName = name;
+    this.clazzName = clazzName;
+    this.structName = structName;
     this.elementType = elementType;
     this.opaqued = false;
+    this.pascalString = pascalString;
   }
 
-  private String arrayName(Class<?> clazz) {
+  private static String arrayName(Class<?> clazz) {
     final StringBuilder buf = new StringBuilder();
     int arrayCount = 0;
     while (clazz.isArray()) {
@@ -638,7 +888,7 @@ public class JavaType {
     return buf.toString();
   }
 
-  private String arrayDescriptor(Class<?> clazz) {
+  private static  String arrayDescriptor(Class<?> clazz) {
     final StringBuilder buf = new StringBuilder();
     while (clazz.isArray()) {
       buf.append("[");
@@ -648,7 +898,7 @@ public class JavaType {
     return buf.toString();
   }
 
-  private String descriptor(final Class<?> clazz) {
+  private static String descriptor(final Class<?> clazz) {
     if (clazz.isPrimitive()) {
       if (clazz == Boolean.TYPE) return "Z";
       if (clazz == Byte.TYPE)    return "B";
@@ -666,7 +916,7 @@ public class JavaType {
     return descriptor(clazz.getName());
   }
 
-  private String descriptor(final String referenceTypeName) {
-    return "L" + referenceTypeName.replace('.', '/') + ";";
+  private static String descriptor(final String clazzName) {
+    return "L" + clazzName.replace('.', '/') + ";";
   }
 }

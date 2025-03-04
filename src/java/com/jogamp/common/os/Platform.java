@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 JogAmp Community. All rights reserved.
+ * Copyright 2010-2023 JogAmp Community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are
  * permitted provided that the following conditions are met:
@@ -28,7 +28,6 @@
 
 package com.jogamp.common.os;
 
-import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.concurrent.TimeUnit;
 
@@ -37,6 +36,7 @@ import com.jogamp.common.net.Uri;
 import com.jogamp.common.util.JarUtil;
 import com.jogamp.common.util.PropertyAccess;
 import com.jogamp.common.util.ReflectionUtil;
+import com.jogamp.common.util.SecurityUtil;
 import com.jogamp.common.util.VersionNumber;
 import com.jogamp.common.util.cache.TempJarCache;
 
@@ -58,7 +58,7 @@ import jogamp.common.os.PlatformPropsImpl;
 public class Platform extends PlatformPropsImpl {
 
     public enum OSType {
-        LINUX, FREEBSD, ANDROID, MACOS, SUNOS, HPUX, WINDOWS, OPENKODE;
+        LINUX, FREEBSD, ANDROID, MACOS, SUNOS, HPUX, WINDOWS, OPENKODE, IOS;
     }
 
     public enum CPUFamily {
@@ -255,8 +255,11 @@ public class Platform extends PlatformPropsImpl {
 
     private static final String useTempJarCachePropName = "jogamp.gluegen.UseTempJarCache";
 
-    /** fixed basename of JAR file and native library */
-    private static final String libBaseName = "gluegen-rt";
+    /**
+     * Fixed basename of JAR file and native library.
+     * Dash replaced by underscore to allow static linkage via JEP 178.
+     */
+    private static final String libBaseName = "gluegen_rt";
 
     //
     // static initialization order:
@@ -284,7 +287,7 @@ public class Platform extends PlatformPropsImpl {
         final boolean[] _USE_TEMP_JAR_CACHE = new boolean[] { false };
         final boolean[] _AWT_AVAILABLE = new boolean[] { false };
 
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
+        SecurityUtil.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
 
@@ -302,11 +305,12 @@ public class Platform extends PlatformPropsImpl {
                 }
                 _isRunningFromJarURL[0] = null != platformClassJarURI;
 
-                _USE_TEMP_JAR_CACHE[0] = ( OS_TYPE != OSType.ANDROID ) && ( null != platformClassJarURI ) &&
+                _USE_TEMP_JAR_CACHE[0] = ( OS_TYPE != OSType.ANDROID ) && ( OS_TYPE != OSType.IOS ) &&
+                                         ( null != platformClassJarURI ) &&
                                          PropertyAccess.getBooleanProperty(useTempJarCachePropName, true, true);
 
                 // load GluegenRT native library
-                if(_USE_TEMP_JAR_CACHE[0] && TempJarCache.initSingleton()) {
+                if(_USE_TEMP_JAR_CACHE[0] && TempJarCache.initSingleton() && TempJarCache.isInitialized(true) ) {
                     try {
                         JNILibLoaderBase.addNativeJarLibs(new Class<?>[] { jogamp.common.Debug.class }, null);
                     } catch (final Exception e0) {
@@ -317,7 +321,7 @@ public class Platform extends PlatformPropsImpl {
                 DynamicLibraryBundle.GlueJNILibLoader.loadLibrary(libBaseName, false, cl);
 
                 // JVM bug workaround
-                JVMUtil.initSingleton(); // requires gluegen-rt, one-time init.
+                JVMUtil.initSingleton(); // requires gluegen_rt, one-time init.
 
                 // AWT Headless determination
                 if( !PropertyAccess.getBooleanProperty("java.awt.headless", true) &&
@@ -350,7 +354,7 @@ public class Platform extends PlatformPropsImpl {
     }
 
     /**
-     * kick off static initialization of <i>platform property information</i> and <i>native gluegen-rt lib loading</i>
+     * kick off static initialization of <i>platform property information</i> and <i>native gluegen_rt lib loading</i>
      */
     public static void initSingleton() { }
 
@@ -517,26 +521,12 @@ public class Platform extends PlatformPropsImpl {
     //
 
     /**
-     * Returns the unix based current time in milliseconds, based on <code>gettimeofday(..)</code>.
-     * <p>
-     * This is an alternative to {@link System#currentTimeMillis()} and {@link System#nanoTime()}.
-     * While the named {@link System} methods do provide the required precision,
-     * <code>gettimeofday()</code> <i>also</i> guarantees time accuracy, i.e. update interval.
-     * </p>
-     * @see #currentTimeMicros()
+     * Returns the unix based current time in milliseconds, see {@link Clock#currentTimeMillis()}.
+     * @see Clock#currentTimeMillis()
      */
-    public static native long currentTimeMillis();
-
-    /**
-     * Returns the unix based current time in microseconds, based on <code>gettimeofday(..)</code>.
-     * <p>
-     * This is an alternative to {@link System#currentTimeMillis()} and {@link System#nanoTime()}.
-     * While the named {@link System} methods do provide the required precision,
-     * <code>gettimeofday()</code> <i>also</i> guarantees time accuracy, i.e. update interval.
-     * </p>
-     * @see #currentTimeMillis()
-     */
-    public static native long currentTimeMicros();
+    public static long currentTimeMillis() {
+        return Clock.currentTimeMillis();
+    }
 
     /**
      * Returns the estimated sleep jitter value in nanoseconds.
@@ -550,11 +540,11 @@ public class Platform extends PlatformPropsImpl {
     }
     private static long getCurrentSleepJitterImpl(final long nsDuration, final int splitInLoops) {
         final long nsPeriod = nsDuration / splitInLoops;
-        final long t0_ns = System.nanoTime();
+        final long t0_ns = Clock.currentNanos();
         for(int i=splitInLoops; i>0; i--) {
             try { TimeUnit.NANOSECONDS.sleep(nsPeriod); } catch (final InterruptedException e) { }
         }
-        return  ( ( System.nanoTime() - t0_ns ) - nsDuration ) / splitInLoops;
+        return  ( ( Clock.currentNanos() - t0_ns ) - nsDuration ) / splitInLoops;
     }
 
 }

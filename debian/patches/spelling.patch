@@ -1,0 +1,96 @@
+Description: fixing minor spelling mistakes
+Author: Pierre Gruet <pgt@debian.org>
+Forwarded: sgothel@jausoft.com
+Last-Update: 2023-12-14
+
+--- a/src/java/com/jogamp/common/util/FunctionTask.java
++++ b/src/java/com/jogamp/common/util/FunctionTask.java
+@@ -172,7 +172,7 @@
+             } catch (final Throwable t) {
+                 runnableException = t;
+                 if(null != exceptionOut) {
+-                    exceptionOut.println("FunctionTask.run(): "+getExceptionOutIntro()+" exception occured on thread "+Thread.currentThread().getName()+": "+toString());
++                    exceptionOut.println("FunctionTask.run(): "+getExceptionOutIntro()+" exception occurred on thread "+Thread.currentThread().getName()+": "+toString());
+                     printSourceTrace();
+                     t.printStackTrace(exceptionOut);
+                 }
+@@ -190,7 +190,7 @@
+                 } catch (final Throwable t) {
+                     runnableException = t;
+                     if(null != exceptionOut) {
+-                        exceptionOut.println("FunctionTask.run(): "+getExceptionOutIntro()+" exception occured on thread "+Thread.currentThread().getName()+": "+toString());
++                        exceptionOut.println("FunctionTask.run(): "+getExceptionOutIntro()+" exception occurred on thread "+Thread.currentThread().getName()+": "+toString());
+                         printSourceTrace();
+                         t.printStackTrace(exceptionOut);
+                     }
+--- a/src/java/com/jogamp/common/util/RunnableTask.java
++++ b/src/java/com/jogamp/common/util/RunnableTask.java
+@@ -126,7 +126,7 @@
+             } catch (final Throwable t) {
+                 runnableException = t;
+                 if(null != exceptionOut) {
+-                    exceptionOut.println("RunnableTask.run(): "+getExceptionOutIntro()+" exception occured on thread "+Thread.currentThread().getName()+": "+toString());
++                    exceptionOut.println("RunnableTask.run(): "+getExceptionOutIntro()+" exception occurred on thread "+Thread.currentThread().getName()+": "+toString());
+                     printSourceTrace();
+                     runnableException.printStackTrace(exceptionOut);
+                 }
+@@ -144,7 +144,7 @@
+                 } catch (final Throwable t) {
+                     runnableException = t;
+                     if(null != exceptionOut) {
+-                        exceptionOut.println("RunnableTask.run(): "+getExceptionOutIntro()+" exception occured on thread "+Thread.currentThread().getName()+": "+toString());
++                        exceptionOut.println("RunnableTask.run(): "+getExceptionOutIntro()+" exception occurred on thread "+Thread.currentThread().getName()+": "+toString());
+                         printSourceTrace();
+                         t.printStackTrace(exceptionOut);
+                     }
+--- a/src/junit/com/jogamp/common/net/TestUri01.java
++++ b/src/junit/com/jogamp/common/net/TestUri01.java
+@@ -74,7 +74,7 @@
+             System.err.println("uri4.asciiE: "+uri1.toASCIIString()+" - "+(equalASCII?"OK":"ERROR"));
+             ok = equalString && equalPath && equalASCII && ok;
+         }
+-        Assert.assertTrue("One or more errors occured see stderr above", ok);
++        Assert.assertTrue("One or more errors occurred see stderr above", ok);
+     }
+ 
+     @Test
+--- a/src/junit/com/jogamp/common/net/TestUri03Resolving.java
++++ b/src/junit/com/jogamp/common/net/TestUri03Resolving.java
+@@ -251,7 +251,7 @@
+             ok = testUri2URL(Uri.Encoded.cast(uriSource)) && ok;
+             System.err.println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE "+testname+": "+(i+1)+"/"+uriSArray.length);
+         }
+-        Assert.assertTrue("One or more errors occured see stderr above", ok);
++        Assert.assertTrue("One or more errors occurred see stderr above", ok);
+     }
+ 
+     static boolean testUri2URL(final Uri.Encoded uriSource) throws IOException, URISyntaxException {
+@@ -320,7 +320,7 @@
+             ok = testURL2Uri(new URL(uriSource)) && ok;
+             System.err.println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE "+testname+": "+(i+1)+"/"+urlSArray.length);
+         }
+-        Assert.assertTrue("One or more errors occured see stderr above", ok);
++        Assert.assertTrue("One or more errors occurred see stderr above", ok);
+     }
+ 
+     static boolean testURL2Uri(final URL urlSource) throws IOException, URISyntaxException {
+@@ -382,7 +382,7 @@
+             ok = testFile2Uri(uriSource, Uri.Encoded.cast(uriEncExpected), fileExpected) && ok;
+             System.err.println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE "+testname+": "+(i+1)+"/"+uriSArray.length);
+         }
+-        Assert.assertTrue("One or more errors occured see stderr above", ok);
++        Assert.assertTrue("One or more errors occurred see stderr above", ok);
+     }
+ 
+     static boolean testFile2Uri(final String fileSource, final Uri.Encoded uriEncExpected, final String fileExpected) throws IOException, URISyntaxException {
+--- a/src/native/common/jau_sys_Clock.c
++++ b/src/native/common/jau_sys_Clock.c
+@@ -72,7 +72,7 @@
+     if( (*env)->ExceptionCheck(env) ) {
+         (*env)->ExceptionDescribe(env);
+         (*env)->ExceptionClear(env);
+-        throwNewRuntimeException(env, "An exception occured from JNI as shown.");
++        throwNewRuntimeException(env, "An exception occurred from JNI as shown.");
+         return JNI_TRUE;
+     } else {
+         return JNI_FALSE;

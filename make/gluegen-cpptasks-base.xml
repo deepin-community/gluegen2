@@ -35,6 +35,7 @@
    -   isAndroidARM64
    -   isAndroidARMv6Armel (set in gluegen.cpptasks.detected.os.2)
    -   isAndroidARMv6Armhf (set in gluegen.cpptasks.detected.os.2)
+   -   isAndroidX86
    -   isLinux
    -   isLinuxAMD64
    -   isLinuxIA64
@@ -48,11 +49,17 @@
    -   isLinuxMips
    -   isLinuxMipsel
    -   isLinuxPpc
+   -   isLinuxPpc64
+   -   isLinuxPpc64le
+   -   isLinuxRiscV64
    -   isLinuxs390
    -   isLinuxs390x
    -   isLinuxSparc
    -   isOSX
    -   isOSXPPC
+   -   isIOS
+   -   isIOSAmd64
+   -   isIOSArm64
    -   isSolaris
    -   isSolaris32Bit
    -   isSolaris64Bit
@@ -67,15 +74,21 @@
    -   jvmDataModel32Bit
 
    -   jvmDataModel.arg  either one of [ "-d64", "-d32" or "-Djnlp.no.jvm.data.model.set=true" ]
+
+   -   build.dynamiclibs
+   -   build.staticlibs  (usually = !build.dynamiclibs)
+   -   output.lib.type
+
    -
-   - isX11 is set if: !isWindows && !isOSX && !noX11
+   - isX11 is set if: !isWindows && !isOSX !isIOS && !noX11
    - 
    - It also sets the following properties which are useful for
    - building native library jar files for Java Web Start and
    - understanding on what OS and architecture things are being built.
    -
    -   os.and.arch (i.e., "windows-i586")
-   -   native.library.suffix (i.e.., "so", "dll")
+   -   native.library.prefix (i.e.., "lib", "")
+   -   native.library.suffix (i.e.., "so", "dll", "dylib")
    - 
    - The gluegen.cpptasks.setup.compiler target is the preferred target
    - to depend upon in your build.xml. It depends on gluegen.cpptasks.detect.compiler
@@ -133,6 +146,9 @@
    -   compiler.cfg.linux.mips
    -   compiler.cfg.linux.mipsel
    -   compiler.cfg.linux.ppc
+   -   compiler.cfg.linux.ppc64
+   -   compiler.cfg.linux.ppc64le
+   -   compiler.cfg.linux.riscv64
    -   compiler.cfg.linux.s390
    -   compiler.cfg.linux.s390x
    -   compiler.cfg.linux.sparc
@@ -143,6 +159,8 @@
    -   compiler.cfg.win32.mingw
    -   compiler.cfg.win32.msvc
    -   compiler.cfg.macosx
+   -   compiler.cfg.ios.amd64
+   -   compiler.cfg.ios.arm64
    -   compiler.cfg.freebsd
    -   compiler.cfg.hpux
    -   linker.cfg.linux
@@ -155,6 +173,8 @@
    -   linker.cfg.linux.mips
    -   linker.cfg.linux.mipsel
    -   linker.cfg.linux.ppc
+   -   linker.cfg.linux.ppc64le
+   -   linker.cfg.linux.riscv64
    -   linker.cfg.linux.s390
    -   linker.cfg.linux.s390x
    -   linker.cfg.linux.sparc
@@ -167,6 +187,8 @@
    -   linker.cfg.win32.mingw
    -   linker.cfg.win32.msvc
    -   linker.cfg.macosx
+   -   linker.cfg.ios.amd64
+   -   linker.cfg.ios.arm64
    -   linker.cfg.hpux
    - 
    - This project file also defines a macrodef called "msvc.manifest"
@@ -176,6 +198,7 @@
   -->
 <project name="GlueGen-cpptasks-base" basedir=".">
 
+  <import file="gluegen-properties.xml" />
   <target name="gluegen.cpptasks.initialize" depends="gluegen.properties.load.user">
     <echo message="os.name=${os.name}" />
     <echo message="os.version=${os.version}" />
@@ -198,28 +221,10 @@
     <condition property="c.strip.libraries"><isfalse value="${c.compiler.debug}"/></condition>
 
     <!-- NOTE: the values of the macos<arch> attributes will not be overridden if already set externally -->
-    <property name="macosppc"     value="false" /> 
-    <property name="macosx64"     value="true" /> 
-    <!-- No 32bit binaries on OSX since Java7 -->
-    <condition property="macosx32" value="false" else="true">
-        <or>
-            <contains string="${ant.java.version}" substring="1.7" casesensitive="false" />
-            <contains string="${ant.java.version}" substring="1.8" casesensitive="false" />
-            <contains string="${ant.java.version}" substring="1.9" casesensitive="false" />
-            <contains string="${ant.java.version}" substring="2.0" casesensitive="false" />
-        </or>
-    </condition>
+    <property name="macosppc"     value="false" /> <!-- permanently disabled -->
+    <property name="macosx32"     value="false" /> <!-- permanently disabled -->
+    <property name="macosx64"     value="true" />  <!-- for x86_64 and arm64 -->
 
-    <!-- Need a way to be able to disable the macosx64 property specification in a build.xml -->
-    <condition property="use.macosppc">
-      <istrue value="${macosppc}" />
-    </condition>
-    <condition property="use.macosx32">
-     <and>
-      <istrue value="${macosx32}" />
-      <os family="mac"/>
-     </and>
-    </condition>
     <condition property="use.macosx64">
      <and>
       <istrue value="${macosx64}" />
@@ -232,7 +237,7 @@
        by a custom file set in property 'gluegen-cpptasks.file' 
        or environment var 'GLUEGEN_CPPTASKS_FILE' 
 
-       See 'lib/gluegen-cpptasks-linux-armv6.xml' which sets OS and ARCH
+       See 'lib/gluegen-cpptasks-linux-armv6hf.xml' which sets OS and ARCH
        for crosscompilation.
     -->
   <target name="gluegen.cpptasks.detect.os.custom">
@@ -257,6 +262,8 @@
     <condition property="is64Bit">
       <or>
         <istrue value="${isAMD64}" />
+        <istrue value="${isIOSAmd64}"/> 
+        <istrue value="${isIOSArm64}"/> 
         <os arch="IA64" />
         <os arch="sparcv9" />
         <os arch="armv8a" />
@@ -264,10 +271,19 @@
       </or>
     </condition>
 
+    <condition property="isIOS">
+      <or>
+          <istrue value="${isIOSAmd64}"/> 
+          <istrue value="${isIOSArm64}"/> 
+      </or>
+    </condition>
     <condition property="isOSX">
       <and>
         <os family="mac"/>
         <os family="unix"/>
+        <not>
+          <istrue value="${isIOS}"/> 
+        </not>
       </and>
     </condition>
     <condition property="isUnix">
@@ -337,6 +353,12 @@
             <os arch="armv8a" />
             <os arch="aarch64" />
         </or>
+      </and>
+    </condition>
+    <condition property="isAndroidX86">
+      <and>
+        <istrue value="${isAndroid}" />
+        <os arch="x86" />
       </and>
     </condition>
     <condition property="isLinuxARMv6">
@@ -416,6 +438,33 @@
     </condition>
     <condition property="ppc">
       <os arch="ppc" />
+    </condition>
+    <condition property="isLinuxPpc64">
+      <and>
+        <istrue value="${isLinux}" />
+        <os arch="ppc64" />
+      </and>
+    </condition>
+    <condition property="ppc64">
+      <os arch="ppc64" />
+    </condition>
+    <condition property="isLinuxPpc64le">
+      <and>
+        <istrue value="${isLinux}" />
+        <os arch="ppc64le" />
+      </and>
+    </condition>
+    <condition property="ppc64le">
+      <os arch="ppc64le" />
+    </condition>
+    <condition property="isLinuxRiscV64">
+      <and>
+        <istrue value="${isLinux}" />
+        <os arch="riscv64" />
+      </and>
+    </condition>
+    <condition property="riscv64">
+      <os arch="riscv64" />
     </condition>
     <condition property="isLinuxs390">
       <and>
@@ -510,6 +559,7 @@
       <and>
         <isfalse value="${isWindows}" />
         <isfalse value="${isOSX}" />
+        <isfalse value="${isIOS}" />
         <isfalse value="${isAndroid}" />
         <isfalse value="${noX11}" />
       </and>
@@ -569,58 +619,6 @@
         <istrue value="${isLinuxARMv6}" />
       </and>
     </condition>
-
-    <echo message="isI386=${isI386}" />
-    <echo message="isAMD64=${isAMD64}" />
-    <echo message="is64Bit=${is64Bit}" />
-    <echo message="isAbiEabiGnuArmel=${isAbiEabiGnuArmel}" />
-    <echo message="isAbiEabiGnuArmhf=${isAbiEabiGnuArmhf}" />
-    <echo message="jvmDataModel32Bit=${jvmDataModel32Bit}" />
-    <echo message="jvmDataModel64Bit=${jvmDataModel64Bit}" />
-    <echo message="jvmDataModel.arg=${jvmDataModel.arg}" />
-    <echo message="FreeBSD=${isFreeBSD}" />
-    <echo message="FreeBSDX86=${isFreeBSDX86}" />
-    <echo message="FreeBSDAMD64=${isFreeBSDAMD64}" />
-    <echo message="HPUX=${isHPUX}" />
-    <echo message="IA64=${isIA64}" />
-    <echo message="Android=${isAndroid}" />
-    <echo message="AndroidARMv6=${isAndroidARMv6}" />
-    <echo message="AndroidARM64=${isAndroidARM64}" />
-    <echo message="AndroidARMv6Armel=${isAndroidARMv6Armel}" />
-    <echo message="AndroidARMv6Armhf=${isAndroidARMv6Armhf}" />
-    <echo message="Linux=${isLinux}" />
-    <echo message="LinuxAMD64=${isLinuxAMD64}" />
-    <echo message="LinuxIA64=${isLinuxIA64}" />
-    <echo message="LinuxX86=${isLinuxX86}" />
-    <echo message="LinuxARMv6=${isLinuxARMv6}" />
-    <echo message="LinuxARM64=${isLinuxARM64}" />
-    <echo message="LinuxARMv6Armel=${isLinuxARMv6Armel}" />
-    <echo message="LinuxARMv6Armhf=${isLinuxARMv6Armhf}" />
-    <echo message="LinuxAlpha=${isLinuxAlpha}" />
-    <echo message="LinuxHppa=${isLinuxHppa}" />
-    <echo message="LinuxMips=${isLinuxMips}" />
-    <echo message="LinuxMipsel=${isLinuxMipsel}" />
-    <echo message="LinuxPpc=${isLinuxPpc}" />
-    <echo message="Linuxs390=${isLinuxs390}" />
-    <echo message="Linuxs390x=${isLinuxs390x}" />
-    <echo message="LinuxSparc=${isLinuxSparc}" />
-    <echo message="OS X=${isOSX}" />
-    <echo message="OS X PPC=${use.macosppc}" />
-    <echo message="OS X x32=${use.macosx32}" />
-    <echo message="OS X x64=${use.macosx64}" />
-    <echo message="Solaris=${isSolaris}" />
-    <echo message="Solaris32Bit=${isSolaris32Bit}" />
-    <echo message="Solaris64Bit=${isSolaris64Bit}" />
-    <echo message="SolarisSparc=${isSolarisSparc}" />
-    <echo message="SolarisSparcv9=${isSolarisSparcv9}" />
-    <echo message="SolarisAMD64=${isSolarisAMD64}" />
-    <echo message="SolarisX86=${isSolarisX86}" />
-    <echo message="Unix=${isUnix}" />
-    <echo message="Windows=${isWindows}" />
-    <echo message="X11=${isX11}" />
-    <echo message="os=${os.name}" />
-    <echo message="os=${os.version}" />
-    <echo message="arch=${os.arch}" /> 
  </target>
 
  <!-- Consult jogamp.common.os.PlatformPropsImpl.getOSAndArch(..) to complete/sync mapping! -->
@@ -683,6 +681,18 @@
     <property name="os.and.arch" value="linux-ppc" />
   </target>
 
+  <target name="gluegen.cpptasks.detect.os.linux.ppc64" unless="gluegen.cpptasks.detected.os.2" if="isLinuxPpc64">
+    <property name="os.and.arch" value="linux-ppc64" />
+  </target>
+
+  <target name="gluegen.cpptasks.detect.os.linux.ppc64le" unless="gluegen.cpptasks.detected.os.2" if="isLinuxPpc64le">
+    <property name="os.and.arch" value="linux-ppc64le" />
+  </target>
+
+  <target name="gluegen.cpptasks.detect.os.linux.riscv64" unless="gluegen.cpptasks.detected.os.2" if="isLinuxRiscV64">
+    <property name="os.and.arch" value="linux-riscv64" />
+  </target>
+
   <target name="gluegen.cpptasks.detect.os.linux.s390" unless="gluegen.cpptasks.detected.os.2" if="isLinuxs390">
     <property name="os.and.arch" value="linux-s390" />
   </target>
@@ -707,11 +717,28 @@
     <property name="os.and.arch" value="android-aarch64" />
   </target>
 
-  <target name="gluegen.cpptasks.detect.os.linux" depends="gluegen.cpptasks.detect.os.linux.amd64,gluegen.cpptasks.detect.os.linux.ia64,gluegen.cpptasks.detect.os.linux.x86,gluegen.cpptasks.detect.os.linux.armv6.armel,gluegen.cpptasks.detect.os.linux.armv6.armhf,gluegen.cpptasks.detect.os.android.armv6.armel,gluegen.cpptasks.detect.os.linux.aarch64,gluegen.cpptasks.detect.os.android.armv6.armhf,gluegen.cpptasks.detect.os.android.aarch64,gluegen.cpptasks.detect.os.linux.alpha,gluegen.cpptasks.detect.os.linux.hppa,gluegen.cpptasks.detect.os.linux.mips,gluegen.cpptasks.detect.os.linux.mipsel,gluegen.cpptasks.detect.os.linux.ppc,gluegen.cpptasks.detect.os.linux.s390,gluegen.cpptasks.detect.os.linux.s390x,gluegen.cpptasks.detect.os.linux.sparc" unless="gluegen.cpptasks.detected.os.2" />
+  <target name="gluegen.cpptasks.detect.os.android.x86" unless="gluegen.cpptasks.detected.os.2" if="isAndroidX86">
+    <property name="os.and.arch" value="android-x86" />
+  </target>
+
+  <target name="gluegen.cpptasks.detect.os.linux" depends="gluegen.cpptasks.detect.os.linux.amd64,gluegen.cpptasks.detect.os.linux.ia64,gluegen.cpptasks.detect.os.linux.x86,gluegen.cpptasks.detect.os.linux.armv6.armel,gluegen.cpptasks.detect.os.linux.armv6.armhf,gluegen.cpptasks.detect.os.android.armv6.armel,gluegen.cpptasks.detect.os.linux.aarch64,gluegen.cpptasks.detect.os.android.armv6.armhf,gluegen.cpptasks.detect.os.android.aarch64,gluegen.cpptasks.detect.os.android.x86,gluegen.cpptasks.detect.os.linux.alpha,gluegen.cpptasks.detect.os.linux.hppa,gluegen.cpptasks.detect.os.linux.mips,gluegen.cpptasks.detect.os.linux.mipsel,gluegen.cpptasks.detect.os.linux.ppc,gluegen.cpptasks.detect.os.linux.ppc64,gluegen.cpptasks.detect.os.linux.ppc64le,gluegen.cpptasks.detect.os.linux.riscv64,gluegen.cpptasks.detect.os.linux.s390,gluegen.cpptasks.detect.os.linux.s390x,gluegen.cpptasks.detect.os.linux.sparc" unless="gluegen.cpptasks.detected.os.2" />
 
   <target name="gluegen.cpptasks.detect.os.osx" unless="gluegen.cpptasks.detected.os.2" if="isOSX">
-    <property name="native.library.suffix"     value="*lib" />
+    <property name="native.library.prefix"     value="lib" />
+    <property name="native.library.suffix"     value="dylib" />
     <property name="os.and.arch" value="macosx-universal" />
+  </target>
+
+  <target name="gluegen.cpptasks.detect.os.ios.amd64" unless="gluegen.cpptasks.detected.os.2" if="isIOSAmd64">
+    <property name="native.library.prefix"     value="lib" />
+    <property name="native.library.suffix"     value="a" />
+    <property name="os.and.arch" value="ios-amd64" />
+  </target>
+
+  <target name="gluegen.cpptasks.detect.os.ios.arch64" unless="gluegen.cpptasks.detected.os.2" if="isIOSArm64">
+    <property name="native.library.prefix"     value="lib" />
+    <property name="native.library.suffix"     value="a" />
+    <property name="os.and.arch" value="ios-arm64" />
   </target>
 
   <target name="gluegen.cpptasks.detect.os.solaris.sparc" unless="gluegen.cpptasks.detected.os.2" if="isSolarisSparc">
@@ -733,6 +760,7 @@
   <target name="gluegen.cpptasks.detect.os.solaris" depends="gluegen.cpptasks.detect.os.solaris.sparc,gluegen.cpptasks.detect.os.solaris.sparcv9,gluegen.cpptasks.detect.os.solaris.amd64,gluegen.cpptasks.detect.os.solaris.x86" unless="gluegen.cpptasks.detected.os.2" />
 
   <target name="gluegen.cpptasks.detect.os.unix" unless="gluegen.cpptasks.detected.os.2" if="isUnix">
+    <property name="native.library.prefix"     value="lib" />
     <property name="native.library.suffix"     value="so" />
   </target>
 
@@ -745,10 +773,11 @@
   </target>
 
   <target name="gluegen.cpptasks.detect.os.windows" depends="gluegen.cpptasks.detect.os.windows.amd64,gluegen.cpptasks.detect.os.windows.x86" unless="gluegen.cpptasks.detected.os.2" if="isWindows">
+    <property name="native.library.prefix"     value="" />
     <property name="native.library.suffix"     value="dll" />
   </target>
 
-  <target name="gluegen.cpptasks.detect.os.2" depends="gluegen.cpptasks.detect.os.refine,gluegen.cpptasks.detect.os.freebsd,gluegen.cpptasks.detect.os.hpux,gluegen.cpptasks.detect.os.linux,gluegen.cpptasks.detect.os.osx,gluegen.cpptasks.detect.os.solaris,gluegen.cpptasks.detect.os.unix,gluegen.cpptasks.detect.os.windows"  unless="gluegen.cpptasks.detected.os.2">
+  <target name="gluegen.cpptasks.detect.os.2" depends="gluegen.cpptasks.detect.os.refine,gluegen.cpptasks.detect.os.freebsd,gluegen.cpptasks.detect.os.hpux,gluegen.cpptasks.detect.os.linux,gluegen.cpptasks.detect.os.osx,gluegen.cpptasks.detect.os.ios.amd64,gluegen.cpptasks.detect.os.ios.arch64,gluegen.cpptasks.detect.os.solaris,gluegen.cpptasks.detect.os.unix,gluegen.cpptasks.detect.os.windows"  unless="gluegen.cpptasks.detected.os.2">
     <propertyregex property="os.and.arch.dot"
                    input="${os.and.arch}"
                    regexp="-"
@@ -762,9 +791,13 @@
     <echo message="os and arch:       ${os.and.arch}" />
     <echo message="os and arch.dot:   ${os.and.arch.dot}" />
     <echo message="os and arch.slash: ${os.and.arch.slash}" />
+    <echo message="native library: prefix '${native.library.prefix}', suffix '${native.library.suffix}'" />
   </target>
 
   <target name="gluegen.cpptasks.detect.os" depends="gluegen.properties.load.user,gluegen.cpptasks.detect.os.custom,gluegen.cpptasks.detect.os.1,gluegen.cpptasks.detect.os.2">
+    <echo message="gluegen.cpptasks.detected.os=${gluegen.cpptasks.detected.os}" />
+    <echo message="gluegen.cpptasks.detected.os.2=${gluegen.cpptasks.detected.os.2}" />
+
     <property name="gluegen.cpptasks.detected.os" value="true" />
     <property name="gluegen.cpptasks.detected.os.2" value="true" />
 
@@ -772,6 +805,10 @@
     <condition property="system.env.library.path"
                value="DYLD_LIBRARY_PATH">
       <isset property="isOSX"/> 
+    </condition>
+    <condition property="system.env.library.path"
+               value="DYLD_LIBRARY_PATH">
+      <isset property="isIOS"/> 
     </condition>
     <condition property="system.env.library.path"
                value="LD_LIBRARY_PATH">
@@ -785,8 +822,77 @@
     <!-- NOTE: the value of the c.strip.tool and c.strip.args attribute will not be overridden if already set externally -->
     <property name="c.strip.tool"     value="strip" /> 
     <condition property="c.strip.args" value="-S -x"><isset property="isOSX"/></condition>
+    <condition property="c.strip.args" value="-S -x"><isset property="isIOS"/></condition>
     <property name="c.strip.args"     value="" /> 
 
+    <condition property="awk_executable" value="gawk" else="awk"><isset property="isWindows"/></condition>
+
+    <condition property="build.dynamiclibs" value="false" else="true"><istrue value="${isIOS}"/></condition>
+    <condition property="build.staticlibs" value="false" else="true"><istrue value="${build.dynamiclibs}"/></condition>
+    <condition property="output.lib.type" value="shared" else="static"><istrue value="${build.dynamiclibs}"/></condition>
+
+    <echo message="isCrosscompilation=${isCrosscompilation}" />
+    <echo message="isI386=${isI386}" />
+    <echo message="isAMD64=${isAMD64}" />
+    <echo message="is64Bit=${is64Bit}" />
+    <echo message="isAbiEabiGnuArmel=${isAbiEabiGnuArmel}" />
+    <echo message="isAbiEabiGnuArmhf=${isAbiEabiGnuArmhf}" />
+    <echo message="jvmDataModel32Bit=${jvmDataModel32Bit}" />
+    <echo message="jvmDataModel64Bit=${jvmDataModel64Bit}" />
+    <echo message="jvmDataModel.arg=${jvmDataModel.arg}" />
+    <echo message="FreeBSD=${isFreeBSD}" />
+    <echo message="FreeBSDX86=${isFreeBSDX86}" />
+    <echo message="FreeBSDAMD64=${isFreeBSDAMD64}" />
+    <echo message="HPUX=${isHPUX}" />
+    <echo message="IA64=${isIA64}" />
+    <echo message="Android=${isAndroid}" />
+    <echo message="AndroidARMv6=${isAndroidARMv6}" />
+    <echo message="AndroidARM64=${isAndroidARM64}" />
+    <echo message="AndroidARMv6Armel=${isAndroidARMv6Armel}" />
+    <echo message="AndroidARMv6Armhf=${isAndroidARMv6Armhf}" />
+    <echo message="AndroidX86=${isAndroidX86}" />
+    <echo message="Linux=${isLinux}" />
+    <echo message="LinuxAMD64=${isLinuxAMD64}" />
+    <echo message="LinuxIA64=${isLinuxIA64}" />
+    <echo message="LinuxX86=${isLinuxX86}" />
+    <echo message="LinuxARMv6=${isLinuxARMv6}" />
+    <echo message="LinuxARM64=${isLinuxARM64}" />
+    <echo message="LinuxARMv6Armel=${isLinuxARMv6Armel}" />
+    <echo message="LinuxARMv6Armhf=${isLinuxARMv6Armhf}" />
+    <echo message="LinuxAlpha=${isLinuxAlpha}" />
+    <echo message="LinuxHppa=${isLinuxHppa}" />
+    <echo message="LinuxMips=${isLinuxMips}" />
+    <echo message="LinuxMipsel=${isLinuxMipsel}" />
+    <echo message="LinuxPpc=${isLinuxPpc}" />
+    <echo message="LinuxPpc64=${isLinuxPpc64}" />
+    <echo message="LinuxPpc64le=${isLinuxPpc64le}" />
+    <echo message="LinuxRiscV64=${isLinuxRiscV64}" />
+    <echo message="Linuxs390=${isLinuxs390}" />
+    <echo message="Linuxs390x=${isLinuxs390x}" />
+    <echo message="LinuxSparc=${isLinuxSparc}" />
+    <echo message="OS X=${isOSX}" />
+    <echo message="OS X PPC=${use.macosppc}" />
+    <echo message="OS X x32=${use.macosx32}" />
+    <echo message="OS X x64=${use.macosx64}" />
+    <echo message="iOS=${isIOS}" />
+    <echo message="iOSAmd64=${isIOSAmd64}" />
+    <echo message="iOSArm64=${isIOSArm64}" />
+    <echo message="Solaris=${isSolaris}" />
+    <echo message="Solaris32Bit=${isSolaris32Bit}" />
+    <echo message="Solaris64Bit=${isSolaris64Bit}" />
+    <echo message="SolarisSparc=${isSolarisSparc}" />
+    <echo message="SolarisSparcv9=${isSolarisSparcv9}" />
+    <echo message="SolarisAMD64=${isSolarisAMD64}" />
+    <echo message="SolarisX86=${isSolarisX86}" />
+    <echo message="Unix=${isUnix}" />
+    <echo message="Windows=${isWindows}" />
+    <echo message="X11=${isX11}" />
+    <echo message="os=${os.name}" />
+    <echo message="os=${os.version}" />
+    <echo message="arch=${os.arch}" /> 
+    <echo message="build.dynamiclibs=${build.dynamiclibs}" /> 
+    <echo message="build.staticlibs=${build.staticlibs}" /> 
+    <echo message="output.lib.type=${output.lib.type}" /> 
   </target>
 
   <!-- Detect compiler setup, in particular on Windows; separated
@@ -917,22 +1023,22 @@
 
     <!-- ================================================================== -->
     <!-- 
-       - Set up java.home.dir appropriately on all platforms.
+       - Set up 'java.home.dir' appropriately on all platforms. 
+       - Used to be the directory above 'java.home' jre path, 
+       - since the <java-install-dir>'s underlying jre was selected for ANT's 'java.home'.
+       - JDK 9 and later's installation layout should no more contain '<java-install-dir>/jre',
+       - hence java.home.dir' should be equal to ANT's 'java.home'.
+       - However, we still probe for the traditional installation layout, to enable individual setups.
+       - Hence we still probe for '${java.home}/../jre' to define 'java.home.dir' 
+       - and also probe for '${java.home.dir}/jre/lib' to define 'java.lib.dir.platform' below.
       -->
-  <target name="setup.java.home.dir.nonmacosx" unless="isOSX">
-      <!-- java home dir is up one directory as java.home points to '<java-install-dir>/jre' -->
-      <property name="java.home.dir" value="${java.home}/.." />
-  </target>
-  <target name="setup.java.home.dir.macosx" if="isOSX">
-      <!-- Java7 std location -->
+  <target name="setup.java.home.dir">
+      <property name="java.home.dir" value="${java.home}" />
       <condition property="java.home.dir"
-                 value="${java.home}/..">
-                 <available file="${java.home}/../include/jni.h"/>
+                 value="${java.home}/.." 
+                 else="${java.home}" >
+                 <available file="${java.home}/../jre" type="dir" />
       </condition>
-      <!-- Fallback value Java6 -->
-      <property name="java.home.dir" value="/System/Library/Frameworks/JavaVM.framework/Home" />
-  </target>
-  <target name="setup.java.home.dir" depends="setup.java.home.dir.nonmacosx,setup.java.home.dir.macosx">
       <property name="java.includes.dir" value="${gluegen.root.abs-path}/make/stub_includes/jni" />
       <echo message="java.home.dir      ${java.home.dir}" />
       <echo message="java.includes.dir  ${java.includes.dir}" />
@@ -996,8 +1102,8 @@
     </compiler>
 
     <!-- Using default compiler settings - utilize:
-           - lib/gluegen-cpptasks-linux-armv6.xml   (armv5te + softfp), or 
            - lib/gluegen-cpptasks-linux-armv6hf.xml (armv6   + hardfp) 
+           - lib/gluegen-cpptasks-linux-aarch64.xml (armv8 64bit) 
          for official JogAmp builds! -->
     <compiler id="compiler.cfg.linux.armv6" name="${gcc.compat.compiler}">
       <defineset>
@@ -1012,6 +1118,10 @@
       <compilerarg value="${gluegen.root.abs-path}/make/stub_includes/platform/glibc-compat-symbols.h" />
     </compiler>
 
+    <!-- Using default compiler settings - utilize:
+           - lib/gluegen-cpptasks-linux-armv6hf.xml (armv6   + hardfp) 
+           - lib/gluegen-cpptasks-linux-aarch64.xml (armv8 64bit) 
+         for official JogAmp builds! -->
     <compiler id="compiler.cfg.linux.aarch64" name="${gcc.compat.compiler}">
       <defineset>
         <define name="__LP64__" />     <!-- default pre-defined macro for 64bit unix -->
@@ -1117,20 +1227,49 @@
       </defineset> 
     </compiler>
 
-    <!-- MacOSX compiler configuration -->
+    <!-- 
+        MacOSX compiler configuration.
 
+        See and sync-with doc/HowToBuild.html and doc/JogAmpMacOSVersions.md
+    -->
     <compiler id="compiler.cfg.macosx" name="${gcc.compat.compiler}">
-      <!-- Note: Apple doesn't seem to provide ppc binaries on Snow Leopard -->
-      <compilerarg value="-arch" if="use.macosppc"/>
-      <compilerarg value="ppc" if="use.macosppc"/>
-      <compilerarg value="-arch" if="use.macosx32"/>
-      <compilerarg value="i386" if="use.macosx32"/>
       <compilerarg value="-arch" if="use.macosx64"/>
       <compilerarg value="x86_64" if="use.macosx64"/>
-      <!-- Note: Apple doesn't seem to provide ppc64 binaries on Leopard -->
+      <compilerarg value="-arch" if="use.macosx64"/>
+      <compilerarg value="arm64" if="use.macosx64"/>
       <compilerarg value="-Wmost" />
       <compilerarg value="-ObjC" />
-      <compilerarg value="-mmacosx-version-min=10.5"/>
+      <compilerarg value="-mmacosx-version-min=10.7"/>
+      <!-- sysincludepath path="${macosx.sdkroot}" if="macosx.sdkroot"/ -->
+      <defineset>
+        <define name="_DEBUG"   if="c.compiler.use-debug"/>
+        <define name="DEBUG"    if="c.compiler.use-debug"/>
+        <define name="NDEBUG"   unless="c.compiler.use-debug"/>
+      </defineset>
+    </compiler>
+
+    <compiler id="compiler.cfg.ios.amd64" name="${gcc.compat.compiler}">
+      <!-- compilerarg value="-v"/ -->
+      <compilerarg value="-arch"/>
+      <compilerarg value="x86_64"/>
+      <compilerarg value="-Wmost" />
+      <compilerarg value="-ObjC" />
+      <compilerarg value="-miphoneos-version-min=11.0"/>
+      <!-- sysincludepath path="${macosx.sdkroot}" if="macosx.sdkroot"/ -->
+      <defineset>
+        <define name="_DEBUG"   if="c.compiler.use-debug"/>
+        <define name="DEBUG"    if="c.compiler.use-debug"/>
+        <define name="NDEBUG"   unless="c.compiler.use-debug"/>
+      </defineset>
+    </compiler>
+
+    <compiler id="compiler.cfg.ios.arm64" name="${gcc.compat.compiler}">
+      <!-- compilerarg value="-v"/ -->
+      <compilerarg value="-arch"/>
+      <compilerarg value="arm64"/>
+      <compilerarg value="-Wmost" />
+      <compilerarg value="-ObjC" />
+      <compilerarg value="-miphoneos-version-min=11.0"/>
       <!-- sysincludepath path="${macosx.sdkroot}" if="macosx.sdkroot"/ -->
       <defineset>
         <define name="_DEBUG"   if="c.compiler.use-debug"/>
@@ -1234,8 +1373,8 @@
     </linker>
 
     <!-- Using default compiler settings - utilize:
-           - lib/gluegen-cpptasks-linux-armv6.xml   (armv5te + softfp), or 
            - lib/gluegen-cpptasks-linux-armv6hf.xml (armv6   + hardfp) 
+           - lib/gluegen-cpptasks-linux-aarch64.xml (armv8 64bit) 
          for official JogAmp builds! -->
     <linker id="linker.cfg.linux.armv6" name="${gcc.compat.compiler}">
       <linkerarg value="-fpic" /> 
@@ -1245,6 +1384,10 @@
       <linkerarg value="-static-libstdc++" if="isGCC"/>
     </linker>
 
+    <!-- Using default compiler settings - utilize:
+           - lib/gluegen-cpptasks-linux-armv6hf.xml (armv6   + hardfp) 
+           - lib/gluegen-cpptasks-linux-aarch64.xml (armv8 64bit) 
+         for official JogAmp builds! -->
     <linker id="linker.cfg.linux.aarch64" name="${gcc.compat.compiler}">
       <linkerarg value="-fpic" /> 
       <linkerarg value="-nostdlib" />
@@ -1266,6 +1409,15 @@
     </linker>
 
     <linker id="linker.cfg.linux.ppc" name="${gcc.compat.compiler}">
+    </linker>
+
+    <linker id="linker.cfg.linux.ppc64" name="${gcc.compat.compiler}">
+    </linker>
+
+    <linker id="linker.cfg.linux.ppc64le" name="${gcc.compat.compiler}">
+    </linker>
+
+    <linker id="linker.cfg.linux.riscv64" name="${gcc.compat.compiler}">
     </linker>
 
     <linker id="linker.cfg.linux.s390" name="${gcc.compat.compiler}">
@@ -1316,17 +1468,32 @@
     <!-- MacOSX linker configuration -->
 
     <linker id="linker.cfg.macosx" name="${gcc.compat.compiler}">
-      <!-- Note: Apple doesn't seem to provide ppc binaries on Snow Leopard -->
-      <linkerarg value="-arch" if="use.macosppc"/>
-      <linkerarg value="ppc" if="use.macosppc"/>
-      <linkerarg value="-arch" if="use.macosx32"/>
-      <linkerarg value="i386" if="use.macosx32"/>
+      <!-- compilerarg value="-v"/ -->
       <linkerarg value="-arch" if="use.macosx64"/>
       <linkerarg value="x86_64" if="use.macosx64"/>
-      <linkerarg value="-mmacosx-version-min=10.5"/>
+      <linkerarg value="-arch" if="use.macosx64"/>
+      <linkerarg value="arm64" if="use.macosx64"/>
+      <linkerarg value="-mmacosx-version-min=10.7"/>
       <linkerarg value="-static-libgcc" if="isGCC"/>
       <linkerarg value="-static-libstdc++" if="isGCC"/>
-      <!-- Note: Apple doesn't seem to provide ppc64 binaries on Leopard -->
+    </linker>
+
+    <linker id="linker.cfg.ios.amd64" name="${gcc.compat.compiler}">
+      <!-- compilerarg value="-v"/ -->
+      <linkerarg value="-arch"/>
+      <linkerarg value="x86_64"/>
+      <linkerarg value="-miphoneos-version-min=11.0"/>
+      <linkerarg value="-static-libgcc" if="isGCC"/>
+      <linkerarg value="-static-libstdc++" if="isGCC"/>
+    </linker>
+
+    <linker id="linker.cfg.ios.arm64" name="${gcc.compat.compiler}">
+      <!-- compilerarg value="-v"/ -->
+      <linkerarg value="-arch"/>
+      <linkerarg value="arm64"/>
+      <linkerarg value="-miphoneos-version-min=11.0"/>
+      <linkerarg value="-static-libgcc" if="isGCC"/>
+      <linkerarg value="-static-libstdc++" if="isGCC"/>
     </linker>
 
     <!-- Windows linker configuration -->
@@ -1382,8 +1549,8 @@
       -->
     <target name="gluegen.cpptasks.declare.compiler.environment" >
       <condition property="java.lib.dir.platform"
-                 value="${env.TARGET_JAVA_LIBS}" >
-                 <available file="${env.TARGET_JAVA_LIBS}" type="dir" />
+                 value="${TARGET_JAVA_LIBS}" >
+                 <available file="${TARGET_JAVA_LIBS}" type="dir" />
       </condition>
     </target>
 
@@ -1427,7 +1594,7 @@
       <echo message="Win64.MingW" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.win64.mingw" />
       <property name="linker.cfg.id.base"            value="linker.cfg.win64.mingw" />
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/bin" /> <!-- link against dll directly (not lib)-->
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/bin" /> <!-- link against dll directly (not lib)-->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.win32" depends="gluegen.cpptasks.declare.compiler.win32.vc6,gluegen.cpptasks.declare.compiler.win32.vc7,gluegen.cpptasks.declare.compiler.win32.vc8,gluegen.cpptasks.declare.compiler.win32.vc8_x64,gluegen.cpptasks.declare.compiler.win32.vc9,gluegen.cpptasks.declare.compiler.win32.mingw,gluegen.cpptasks.declare.compiler.win64.mingw" if="isWindows">
@@ -1439,94 +1606,179 @@
       <echo message="Linux.x86" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux.x86" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux.x86" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/i386" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/i386" 
+                                                      file="${java.home.dir}/jre/lib/i386/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/i386"     
+                                                      file="${java.home.dir}/lib/i386/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.amd64" if="isLinuxAMD64">
       <echo message="Linux.AMD64" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux.amd64" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux.amd64" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/amd64" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/amd64" 
+                                                      file="${java.home.dir}/jre/lib/amd64/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/amd64"     
+                                                      file="${java.home.dir}/lib/amd64/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.alpha" if="isLinuxAlpha">
       <echo message="Linux.alpha" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux.alpha" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux.alpha" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/alpha" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/alpha" 
+                                                      file="${java.home.dir}/jre/lib/alpha/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/alpha"     
+                                                      file="${java.home.dir}/lib/alpha/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.armv6" if="isLinuxARMv6">
       <echo message="Linux.armv6" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux.armv6" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux.armv6" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/arm" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/arm" 
+                                                      file="${java.home.dir}/jre/lib/arm/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/arm"     
+                                                      file="${java.home.dir}/lib/arm/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.aarch64" if="isLinuxARM64">
       <echo message="Linux.aarch64" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux.aarch64" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux.aarch64" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/arm" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/aarch64" 
+                                                      file="${java.home.dir}/jre/lib/aarch64/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/aarch64"     
+                                                      file="${java.home.dir}/lib/aarch64/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.ia64" if="isLinuxIA64">
       <echo message="Linux.IA64" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/ia64" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/ia64" 
+                                                      file="${java.home.dir}/jre/lib/ia64/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/ia64"     
+                                                      file="${java.home.dir}/lib/ia64/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.hppa" if="isLinuxHppa">
       <echo message="Linux.hppa" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/hppa" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/hppa" 
+                                                      file="${java.home.dir}/jre/lib/hppa/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/hppa"     
+                                                      file="${java.home.dir}/lib/hppa/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.mips" if="isLinuxMips">
       <echo message="Linux.Mips" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/mips" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/mips" 
+                                                      file="${java.home.dir}/jre/lib/mips/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/mips"     
+                                                      file="${java.home.dir}/lib/mips/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.mipsel" if="isLinuxMipsel">
       <echo message="Linux.Mipsel" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/mipsel" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/mipsel" 
+                                                      file="${java.home.dir}/jre/lib/mipsel/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/mipsel"     
+                                                      file="${java.home.dir}/lib/mipsel/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.ppc" if="isLinuxPpc">
       <echo message="Linux.Ppc" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/ppc" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/ppc" 
+                                                      file="${java.home.dir}/jre/lib/ppc/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/ppc"     
+                                                      file="${java.home.dir}/lib/ppc/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
+    </target>
+
+    <target name="gluegen.cpptasks.declare.compiler.linux.ppc64" if="isLinuxPpc64">
+      <echo message="Linux.Ppc64" />
+      <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" />
+      <property name="linker.cfg.id.base"            value="linker.cfg.linux" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/ppc64" 
+                                                      file="${java.home.dir}/jre/lib/ppc64/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/ppc64"     
+                                                      file="${java.home.dir}/lib/ppc64/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
+    </target>
+
+    <target name="gluegen.cpptasks.declare.compiler.linux.ppc64le" if="isLinuxPpc64le">
+      <echo message="Linux.Ppc64le" />
+      <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" />
+      <property name="linker.cfg.id.base"            value="linker.cfg.linux" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/ppc64le" 
+                                                      file="${java.home.dir}/jre/lib/ppc64le/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/ppc64le"     
+                                                      file="${java.home.dir}/lib/ppc64le/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
+    </target>
+
+    <target name="gluegen.cpptasks.declare.compiler.linux.riscv64" if="isLinuxRiscV64">
+      <echo message="Linux.RiscV64" />
+      <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" />
+      <property name="linker.cfg.id.base"            value="linker.cfg.linux" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/riscv64" 
+                                                      file="${java.home.dir}/jre/lib/riscv64/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/riscv64"     
+                                                      file="${java.home.dir}/lib/riscv64/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.s390" if="isLinuxs390">
       <echo message="Linux.s390" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/s390" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/s390" 
+                                                      file="${java.home.dir}/jre/lib/s390/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/s390"     
+                                                      file="${java.home.dir}/lib/s390/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.s390x" if="isLinuxs390x">
       <echo message="Linux.s390x" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/s390x" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/s390x" 
+                                                      file="${java.home.dir}/jre/lib/s390x/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/s390x"     
+                                                      file="${java.home.dir}/lib/s390x/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.linux.sparc" if="isLinuxSparc">
       <echo message="Linux.Sparc" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.linux" /> 
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/sparc" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/sparc" 
+                                                      file="${java.home.dir}/jre/lib/sparc/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/sparc"     
+                                                      file="${java.home.dir}/lib/sparc/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
-    <target name="gluegen.cpptasks.declare.compiler.linux" depends="gluegen.cpptasks.declare.compiler.linux.x86,gluegen.cpptasks.declare.compiler.linux.amd64,gluegen.cpptasks.declare.compiler.linux.ia64,gluegen.cpptasks.declare.compiler.linux.armv6,gluegen.cpptasks.declare.compiler.linux.aarch64,gluegen.cpptasks.declare.compiler.linux.alpha,gluegen.cpptasks.declare.compiler.linux.hppa,gluegen.cpptasks.declare.compiler.linux.mips,gluegen.cpptasks.declare.compiler.linux.mipsel,gluegen.cpptasks.declare.compiler.linux.ppc,gluegen.cpptasks.declare.compiler.linux.s390,gluegen.cpptasks.declare.compiler.linux.s390x,gluegen.cpptasks.declare.compiler.linux.sparc" if="isLinux">
+    <target name="gluegen.cpptasks.declare.compiler.linux" depends="gluegen.cpptasks.declare.compiler.linux.x86,gluegen.cpptasks.declare.compiler.linux.amd64,gluegen.cpptasks.declare.compiler.linux.ia64,gluegen.cpptasks.declare.compiler.linux.armv6,gluegen.cpptasks.declare.compiler.linux.aarch64,gluegen.cpptasks.declare.compiler.linux.alpha,gluegen.cpptasks.declare.compiler.linux.hppa,gluegen.cpptasks.declare.compiler.linux.mips,gluegen.cpptasks.declare.compiler.linux.mipsel,gluegen.cpptasks.declare.compiler.linux.ppc,gluegen.cpptasks.declare.compiler.linux.ppc64,gluegen.cpptasks.declare.compiler.linux.ppc64le,gluegen.cpptasks.declare.compiler.linux.riscv64,gluegen.cpptasks.declare.compiler.linux.s390,gluegen.cpptasks.declare.compiler.linux.s390x,gluegen.cpptasks.declare.compiler.linux.sparc" if="isLinux">
         <property name="java.includes.dir.platform" value="${java.includes.dir}/x11" />
     </target>
 
@@ -1550,7 +1802,11 @@
 
     <target name="gluegen.cpptasks.declare.compiler.solaris" depends="gluegen.cpptasks.declare.compiler.solaris32,gluegen.cpptasks.declare.compiler.solaris.sparcv9,gluegen.cpptasks.declare.compiler.solaris.amd64" if="isSolaris">
       <property name="java.includes.dir.platform"    value="${java.includes.dir}/x11" />
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/${solaris.cpu}" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/${solaris.cpu}" 
+                                                      file="${java.home.dir}/jre/lib/${solaris.cpu}/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/${solaris.cpu}"     
+                                                      file="${java.home.dir}/lib/${solaris.cpu}/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.macosx" if="isOSX">
@@ -1558,26 +1814,51 @@
       <property name="compiler.cfg.id.base"          value="compiler.cfg.macosx" /> 
       <property name="linker.cfg.id.base"            value="linker.cfg.macosx" /> 
       <property name="java.includes.dir.platform"    value="${java.includes.dir}/macosx" />
-      <condition property="java.lib.dir.platform"
-                 value="${java.home.dir}/jre/lib">
-                 <available file="${java.home.dir}/jre/lib/libjawt.dylib"/>
-      </condition>
-      <!-- Fallback value Java6 -->
-      <property name="java.lib.dir.platform"      value="/System/Library/Frameworks/JavaVM.framework/Libraries" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib"
+                                                      file="${java.home.dir}/jre/lib/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
+    </target>
+
+    <target name="gluegen.cpptasks.declare.compiler.ios.amd64" if="isIOSAmd64">
+      <echo message="iOSAmd64" />
+      <property name="compiler.cfg.id.base"          value="compiler.cfg.ios.amd64" /> 
+      <property name="linker.cfg.id.base"            value="linker.cfg.ios.amd64" /> 
+      <property name="java.includes.dir.platform"    value="${java.includes.dir}/macosx" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib"
+                                                      file="${java.home.dir}/jre/lib/libjava.a"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
+    </target>
+
+    <target name="gluegen.cpptasks.declare.compiler.ios.arm64" if="isIOSArm64">
+      <echo message="iOSArm64" />
+      <property name="compiler.cfg.id.base"          value="compiler.cfg.ios.arm64" /> 
+      <property name="linker.cfg.id.base"            value="linker.cfg.ios.arm64" /> 
+      <property name="java.includes.dir.platform"    value="${java.includes.dir}/macosx" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib"
+                                                      file="${java.home.dir}/jre/lib/libjava.a"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.freebsd.x86" if="isFreeBSDX86">
       <echo message="FreeBSD" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.freebsd" />
       <property name="linker.cfg.id.base"            value="linker.cfg.freebsd.x86" />
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/i386" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/i386" 
+                                                      file="${java.home.dir}/jre/lib/i386/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/i386"     
+                                                      file="${java.home.dir}/lib/i386/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.freebsd.amd64" if="isFreeBSDAMD64">
       <echo message="FreeBSD" />
       <property name="compiler.cfg.id.base"          value="compiler.cfg.freebsd" />
       <property name="linker.cfg.id.base"            value="linker.cfg.freebsd.amd64" />
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/amd64" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/amd64" 
+                                                      file="${java.home.dir}/jre/lib/amd64/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/amd64"     
+                                                      file="${java.home.dir}/lib/amd64/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
     <target name="gluegen.cpptasks.declare.compiler.freebsd" depends="gluegen.cpptasks.declare.compiler.freebsd.x86,gluegen.cpptasks.declare.compiler.freebsd.amd64" if="isFreeBSD">
@@ -1589,10 +1870,14 @@
       <property name="compiler.cfg.id.base"          value="compiler.cfg.hpux" />
       <property name="linker.cfg.id.base"            value="linker.cfg.hpux" />
       <property name="java.includes.dir.platform"    value="${java.includes.dir}/x11" />
-      <property name="java.lib.dir.platform"         value="${java.home.dir}/jre/lib/PA_RISC2.0" />
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/PA_RISC2.0" 
+                                                      file="${java.home.dir}/jre/lib/PA_RISC2.0/libjava.so"/>
+      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/PA_RISC2.0"     
+                                                      file="${java.home.dir}/lib/PA_RISC2.0/libjava.so"/>
+      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
     </target>
 
-    <target name="gluegen.cpptasks.declare.compiler" depends="gluegen.cpptasks.declare.compiler.environment,gluegen.cpptasks.declare.compiler.win32,gluegen.cpptasks.declare.compiler.linux,gluegen.cpptasks.declare.compiler.solaris,gluegen.cpptasks.declare.compiler.macosx,gluegen.cpptasks.declare.compiler.freebsd,gluegen.cpptasks.declare.compiler.hpux" >
+    <target name="gluegen.cpptasks.declare.compiler" depends="gluegen.cpptasks.declare.compiler.environment,gluegen.cpptasks.declare.compiler.win32,gluegen.cpptasks.declare.compiler.linux,gluegen.cpptasks.declare.compiler.solaris,gluegen.cpptasks.declare.compiler.macosx,gluegen.cpptasks.declare.compiler.ios.amd64,gluegen.cpptasks.declare.compiler.ios.arm64,gluegen.cpptasks.declare.compiler.freebsd,gluegen.cpptasks.declare.compiler.hpux" >
       <echo message="java.home.dir                ${java.home.dir}" />
       <echo message="java.includes.dir            ${java.includes.dir}" />
       <echo message="java.includes.dir.platform   ${java.includes.dir.platform}" />
@@ -1614,7 +1899,6 @@
           <include name="**/*.so"/>     <!-- unix    -->
           <include name="**/*.dll"/>    <!-- windows -->
           <include name="**/*.dylib"/>  <!-- macosx  -->
-          <include name="**/*.jnilib"/> <!-- macosx  -->
         </fileset>
       </apply>
     </target>
@@ -1644,14 +1928,30 @@
       <attribute name="excludelibs" default="" />
       <sequential>
 
+      <echo message="native.tag.jar @{module} (attr) for @{nativejarfile} include @{includelibs} exclude @{excludelibs}"/>
       <var name="nativejarfile.basename" unset="true"/>
       <var name="nativejarfile.tmpdir" unset="true"/>
       <var name="nativejarfile.tmpdir.natives" unset="true"/>
+      <var name="nativejarfile.includelibs" unset="true"/>
+      <var name="nativejarfile.excludelibs" unset="true"/>
       <basename property="nativejarfile.basename" file="@{nativejarfile}"/>
       <property name="nativejarfile.tmpdir" value="@{objdir}/${nativejarfile.basename}.d" />
       <property name="nativejarfile.tmpdir.natives" value="${nativejarfile.tmpdir}/jar" />
       <!-- In case we like to switch to a natives subfolder 'natives/${os.and.arch}' use the following -->
       <!-- property name="nativejarfile.tmpdir.natives" value="${nativejarfile.tmpdir}/jar/natives/${os.and.arch}" /-->
+
+      <!-- enforce inclusion/exclusion of *.symbols depending on build.dynamiclibs -->
+      <condition property="nativejarfile.includelibs"
+                 value="@{includelibs}"
+                 else="@{includelibs} *.symbols">
+           <istrue value="${build.dynamiclibs}"/>
+      </condition>
+      <condition property="nativejarfile.excludelibs"
+                 value="@{excludelibs} *.symbols"
+                 else="@{excludelibs}">
+           <istrue value="${build.dynamiclibs}"/>
+      </condition>
+      <echo message="native.tag.jar @{module} (props) ${nativejarfile.basename} include ${nativejarfile.includelibs} exclude ${nativejarfile.excludelibs}"/>
 
       <mkdir dir="${nativejarfile.tmpdir}/java" />
       <mkdir dir="${nativejarfile.tmpdir.natives}" />
@@ -1659,8 +1959,8 @@
       <mkdir dir="${nativejarfile.tmpdir.natives}/natives/${os.and.arch}" />
       <copy todir="${nativejarfile.tmpdir.natives}/natives/${os.and.arch}">
         <fileset dir="@{objdir}"
-                 includes="@{includelibs}"
-                 excludes="@{excludelibs}"/>
+                 includes="${nativejarfile.includelibs}"
+                 excludes="${nativejarfile.excludelibs}"/>
       </copy>
       <echo message='package ${nativejartag.package}.@{module}.${os.and.arch.dot}; public final class TAG { }' file="${nativejarfile.tmpdir}/java/${nativejartag.prefix}/@{module}/${os.and.arch.slash}/TAG.java"/>
       <javac destdir="${nativejarfile.tmpdir}/jar"
@@ -1680,6 +1980,25 @@
       <delete includeEmptyDirs="true">
         <fileset dir="${nativejarfile.tmpdir}" />
       </delete>
+      </sequential>
+    </macrodef>  
+
+    <macrodef name="gluegen.make.libsymbols">
+      <attribute name="builddir" />
+      <attribute name="nativelib" />
+      <attribute name="symbolsfile" />
+      <sequential>
+      <!-- invoke nm in a most compatible way, tested on GNU/Linux and MacOS -->
+      <exec executable="nm" dir="@{builddir}" output="@{symbolsfile}.raw">
+        <arg value="--extern-only"/>
+        <arg value="--defined-only"/>
+        <arg value="@{nativelib}"/>
+      </exec>
+      <exec executable="${awk_executable}" dir="@{builddir}" output="@{symbolsfile}">
+        <arg value="{ print $3 }"/>
+        <arg value="@{symbolsfile}.raw"/>
+      </exec>
+      <delete file="@{symbolsfile}.raw" quiet="true" failonerror="false" />
       </sequential>
     </macrodef>  
 </project>

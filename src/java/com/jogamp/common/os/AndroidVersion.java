@@ -74,15 +74,20 @@ public class AndroidVersion {
         Object abvObject= null;
         Class<?> abvcClass = null;
         Object abvcObject= null;
-        try {
-            abClass = ReflectionUtil.getClass(androidBuild, true, cl);
-            abObject = abClass.newInstance();
-            abvClass = ReflectionUtil.getClass(androidBuildVersion, true, cl);
-            abvObject = abvClass.newInstance();
-            abvcClass = ReflectionUtil.getClass(androidBuildVersionCodes, true, cl);
-            abvcObject = abvcClass.newInstance();
-        } catch (final Exception e) { /* n/a */ }
-        isAvailable = null != abObject && null != abvObject;
+
+        final boolean isDalvikVm = "Dalvik".equals(System.getProperty("java.vm.name"));
+
+        if (isDalvikVm) {
+          try {
+              abClass = ReflectionUtil.getClass(androidBuild, true, cl);
+              abObject = abClass.newInstance();
+              abvClass = ReflectionUtil.getClass(androidBuildVersion, true, cl);
+              abvObject = abvClass.newInstance();
+              abvcClass = ReflectionUtil.getClass(androidBuildVersionCodes, true, cl);
+              abvcObject = abvcClass.newInstance();
+          } catch (final Exception e) { /* n/a */ }
+        }
+        isAvailable = isDalvikVm && null != abObject && null != abvObject;
         if(isAvailable) {
             CPU_ABI = getString(abClass, abObject, "CPU_ABI", true);
             CPU_ABI2 = getString(abClass, abObject, "CPU_ABI2", true);
@@ -106,6 +111,7 @@ public class AndroidVersion {
              * <pre>
              *  lib/armeabi/libfoo.so
              *  lib/armeabi-v7a/libfoo.so
+             *  lib/arm64-v8a/libfoo.so
              *  lib/x86/libfoo.so
              *  lib/mips/libfoo.so
              * </pre>

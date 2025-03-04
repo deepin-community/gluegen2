@@ -18,9 +18,19 @@
 #if defined(__linux__) /* Actually we like to test whether we link against GLIBC .. */
     #if defined(__GNUC__)
         #if defined(__aarch64__)
-           #define GLIBC_COMPAT_SYMBOL(FFF) __asm__(".symver " #FFF "," #FFF "@GLIBC_2.4");
+           /* glibc 2.17 is the first glibc version that support aarch64
+              however memcpy is not versioned for aarch64 */
+           #define GLIBC_COMPAT_SYMBOL(FFF)
         #elif defined(__arm__)
+           /** On recent toolchain memcpy is no more versioned for arm 
            #define GLIBC_COMPAT_SYMBOL(FFF) __asm__(".symver " #FFF "," #FFF "@GLIBC_2.4");
+            */
+           #define GLIBC_COMPAT_SYMBOL(FFF)
+        #elif defined(__PPC64__)
+	   /* PPC64 has multiple versions of memcpy from glibc 2.3 and onwards
+	    * while PPC64LE only has one (introduced in glibc 2.17). PPC64LE is
+	    * the more common of the two now so skip versioning. */
+           #define GLIBC_COMPAT_SYMBOL(FFF)
         #elif defined(__amd64__)
            #define GLIBC_COMPAT_SYMBOL(FFF) __asm__(".symver " #FFF "," #FFF "@GLIBC_2.2.5");
         #else
@@ -28,9 +38,19 @@
         #endif /*__amd64__*/
     #elif defined(__clang__)
         #if defined(__aarch64__)
-           #define GLIBC_COMPAT_SYMBOL(FFF) asm(".symver " #FFF "," #FFF "@GLIBC_2.4");
+           /* glibc 2.17 is the first glibc version that support aarch64
+              however memcpy is not versioned for aarch64 */
+           #define GLIBC_COMPAT_SYMBOL(FFF)
         #elif defined(__arm__)
-           #define GLIBC_COMPAT_SYMBOL(FFF) asm(".symver " #FFF "," #FFF "@GLIBC_2.4");
+           /** On recent toolchain memcpy is no more versioned for arm 
+           #define GLIBC_COMPAT_SYMBOL(FFF) __asm__(".symver " #FFF "," #FFF "@GLIBC_2.4");
+            */
+           #define GLIBC_COMPAT_SYMBOL(FFF)
+        #elif defined(__PPC64__)
+	   /* PPC64 has multiple versions of memcpy from glibc 2.3 and onwards
+	    * while PPC64LE only has one (introduced in glibc 2.17). PPC64LE is
+	    * the more common of the two now so skip versioning. */
+           #define GLIBC_COMPAT_SYMBOL(FFF)
         #elif defined(__amd64__)
            #define GLIBC_COMPAT_SYMBOL(FFF) asm(".symver " #FFF "," #FFF "@GLIBC_2.2.5");
         #else

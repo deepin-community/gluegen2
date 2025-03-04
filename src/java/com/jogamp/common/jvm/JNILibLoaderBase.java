@@ -44,17 +44,18 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
 import com.jogamp.common.net.Uri;
 import com.jogamp.common.os.NativeLibrary;
 import com.jogamp.common.util.JarUtil;
 import com.jogamp.common.util.PropertyAccess;
+import com.jogamp.common.util.SecurityUtil;
 import com.jogamp.common.util.cache.TempJarCache;
 
 import jogamp.common.Debug;
@@ -203,7 +204,7 @@ public class JNILibLoaderBase {
         System.err.printf("JNILibLoaderBase: addNativeJarLibsImpl: initial: %s -> %s%n", jarSubURI, jarSubUriRoot);
     }
 
-    final String nativeLibraryPath = String.format("natives/%s/", PlatformPropsImpl.os_and_arch);
+    final String nativeLibraryPath = String.format((Locale)null, "natives/%s/", PlatformPropsImpl.os_and_arch);
     if (DEBUG) {
         System.err.printf("JNILibLoaderBase: addNativeJarLibsImpl: nativeLibraryPath: %s%n", nativeLibraryPath);
     }
@@ -404,7 +405,7 @@ public class JNILibLoaderBase {
     }
 
     boolean ok = false;
-    if (TempJarCache.isInitialized()) {
+    if ( TempJarCache.isInitialized(true) ) {
         ok = addNativeJarLibsWithTempJarCache(classesFromJavaJars, singleJarMarker);
     } else if(DEBUG) {
         System.err.println("JNILibLoaderBase: addNativeJarLibs0: disabled due to uninitialized TempJarCache");
@@ -451,7 +452,7 @@ public class JNILibLoaderBase {
               }
 
               final Uri.Encoded nativeJarBasename =
-                      Uri.Encoded.cast( String.format("%s-natives-%s.jar", jarBasename.get(), PlatformPropsImpl.os_and_arch) );
+                      Uri.Encoded.cast( String.format((Locale)null, "%s-natives-%s.jar", jarBasename.get(), PlatformPropsImpl.os_and_arch) );
 
               ok = JNILibLoaderBase.addNativeJarLibsImpl(c, classJarURI, jarName, nativeJarBasename);
               if (ok) {
@@ -511,7 +512,7 @@ public class JNILibLoaderBase {
     final String sunAppletLauncherProperty = "sun.jnlp.applet.launcher";
     final String sunAppletLauncherClassName = "org.jdesktop.applet.util.JNLPAppletLauncher";
 
-    final Method loadLibraryMethod = AccessController.doPrivileged(new PrivilegedAction<Method>() {
+    final Method loadLibraryMethod = SecurityUtil.doPrivileged(new PrivilegedAction<Method>() {
         @Override
         public Method run() {
             // FIXME: remove
@@ -604,14 +605,14 @@ public class JNILibLoaderBase {
               mode = 2;
           } else {
               if(DEBUG) {
-                  System.err.println("JNILibLoaderBase: System.loadLibrary("+libraryName+") - mode 3");
+                  System.err.println("JNILibLoaderBase: System.loadLibrary("+libraryName+") - mode 3: SystemEnvLibraryPaths: "+NativeLibrary.getSystemEnvLibraryPaths());
               }
               try {
                   System.loadLibrary(libraryName);
                   mode = 3;
               } catch (final UnsatisfiedLinkError ex1) {
                   if(DEBUG) {
-                      System.err.println("ERROR (retry w/ enumLibPath) - "+ex1.getMessage());
+                      System.err.println("ERROR mode 3 - "+ex1.getMessage());
                   }
                   final List<String> possiblePaths = NativeLibrary.enumerateLibraryPaths(libraryName, libraryName, libraryName, cl);
                   // Iterate down these and see which one if any we can actually find.
@@ -628,7 +629,10 @@ public class JNILibLoaderBase {
                               System.err.println("n/a - "+ex2.getMessage());
                           }
                           if(!iter.hasNext()) {
-                              throw ex2;
+                              // Avoid misleading final exception, use our own
+                              throw new UnsatisfiedLinkError("Couldn't load library '"+libraryName+
+                                      "' generically including "+NativeLibrary.getSystemEnvLibraryPaths()+ // mode 3
+                                      ", nor as "+possiblePaths); // mode 4
                           }
                       }
                   }

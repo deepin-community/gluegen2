@@ -1,0 +1,17 @@
+Description: removing cc attributes that are not recognized by
+ Debian-packaged ant
+Author: Pierre Gruet <pgt@debian.org>
+Forwarded: not-needed
+Last-Update: 2023-03-15
+
+--- a/make/build.xml
++++ b/make/build.xml
+@@ -501,8 +501,6 @@
+       <echo message="user.dir=${user.dir}" />
+ 
+       <cc outtype="${output.lib.type}" 
+-          usehighleveltool="true"
+-          writesoname="true"
+           objdir="${gluegen.lib.dir}"
+           outfile="${gluegen.lib.dir}/${output.lib.name}"
+           optimize="${c.compiler.optimise}" 

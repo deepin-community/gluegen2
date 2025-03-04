@@ -50,7 +50,7 @@ import com.jogamp.gluegen.cgram.types.*;
 public interface GlueEmitter {
 
   public void readConfigurationFile(String filename) throws Exception;
-  public JavaConfiguration getConfiguration();
+  public JavaConfiguration getConfig();
 
   /**
    * Begin the emission of glue code. This might include opening files,
@@ -75,7 +75,8 @@ public interface GlueEmitter {
 
   public void beginFunctions(TypeDictionary typedefDictionary,
                              TypeDictionary structDictionary,
-                             Map<Type, Type> canonMap) throws Exception;
+                             Map<Type, Type> canonMap,
+                             List<FunctionSymbol> cFunctions) throws Exception;
 
   /** Emit glue code for the list of FunctionSymbols. */
   public Iterator<FunctionSymbol> emitFunctions(List<FunctionSymbol> cFunctions) throws Exception;

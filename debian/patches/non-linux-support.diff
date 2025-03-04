@@ -1,6 +1,11 @@
+Description: treat other Debian kernels as if they were Linux
+Author: Emmanuel Bourg <ebourg@apache.org>
+Forwarded: not-needed
+Last-Update: 2023-03-15
+
 --- a/make/gluegen-cpptasks-base.xml
 +++ b/make/gluegen-cpptasks-base.xml
-@@ -292,7 +292,12 @@
+@@ -303,7 +303,12 @@
        <os name="Android" />
      </condition>
      <condition property="isLinux">

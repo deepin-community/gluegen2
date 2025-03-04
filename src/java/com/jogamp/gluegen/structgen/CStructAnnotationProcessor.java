@@ -28,7 +28,9 @@
 package com.jogamp.gluegen.structgen;
 
 import com.jogamp.common.util.PropertyAccess;
+import com.jogamp.gluegen.CCodeUnit;
 import com.jogamp.gluegen.GlueGen;
+import com.jogamp.gluegen.JavaCodeUnit;
 import com.jogamp.gluegen.JavaEmitter;
 
 import java.io.BufferedReader;
@@ -85,7 +87,7 @@ import jogamp.common.Debug;
  * @author Michael Bien, et al.
  */
 @SupportedAnnotationTypes(value = {"com.jogamp.gluegen.structgen.CStruct", "com.jogamp.gluegen.structgen.CStructs"})
-@SupportedSourceVersion(SourceVersion.RELEASE_6)
+@SupportedSourceVersion(SourceVersion.RELEASE_11)
 public class CStructAnnotationProcessor extends AbstractProcessor {
     private static final String DEFAULT = "_default_";
     static final boolean DEBUG;
@@ -96,12 +98,15 @@ public class CStructAnnotationProcessor extends AbstractProcessor {
     }
 
     private static final String STRUCTGENOUTPUT_OPTION = "structgen.output";
+    private static final String STRUCTGENPRAGMA_ONCE = "structgen.enable.pragma.once";
     private static final String STRUCTGENOUTPUT = PropertyAccess.getProperty("jogamp.gluegen."+STRUCTGENOUTPUT_OPTION, true, "gensrc");
+    private static final String STRUCTGENPRAGMAONCE = PropertyAccess.getProperty("jogamp.gluegen."+STRUCTGENPRAGMA_ONCE, true, "true");
 
     private Filer filer;
     private Messager messager;
     private Elements eltUtils;
     private String outputPath;
+    private boolean enablePragmaOnce;
 
     private final static Set<String> generatedStructs = new HashSet<String>();
 
@@ -116,6 +121,9 @@ public class CStructAnnotationProcessor extends AbstractProcessor {
 
         outputPath = processingEnv.getOptions().get(STRUCTGENOUTPUT_OPTION);
         outputPath = outputPath == null ? STRUCTGENOUTPUT : outputPath;
+
+        final String enablePragmaOnceOpt = processingEnv.getOptions().get(STRUCTGENPRAGMAONCE);
+        enablePragmaOnce = Boolean.parseBoolean(enablePragmaOnceOpt == null ? STRUCTGENPRAGMAONCE : enablePragmaOnceOpt);
     }
 
     private File locateSource(final String packageName, final String relativeName) {
@@ -178,7 +186,10 @@ public class CStructAnnotationProcessor extends AbstractProcessor {
                 System.err.println("CStruct.0: element: "+element+", .simpleName "+element.getSimpleName());
                 System.err.print("CStruct.0: isPackageOrType "+isPackageOrType+", enclElement: "+enclElement);
                 if( !isPackageOrType ) {
-                    System.err.println(", .simpleName "+enclElement.getSimpleName()+", .package "+eltUtils.getPackageOf(enclElement).toString());
+                	if(!enclElement.toString().equals("unnamed module"))
+	                    System.err.println(", .simpleName "+enclElement.getSimpleName()+", .package "+eltUtils.getPackageOf(enclElement).toString());
+                	else
+	                    System.err.println(", .simpleName "+enclElement.getSimpleName()+", .package <unnamed modules have no package>");
                 } else {
                     System.err.println("");
                 }
@@ -206,7 +217,7 @@ public class CStructAnnotationProcessor extends AbstractProcessor {
                 headerParent = root0.substring(0, root0.length()-headerFile.getName().length()-1);
                 rootOut = headerParent.substring(0, headerParent.length()-packageName.length()) + "..";
             }
-            System.err.println("CStruct: "+headerFile+", abs: "+headerFile.isAbsolute()+", headerParent "+headerParent+", rootOut "+rootOut);
+            System.err.println("CStruct: "+headerFile+", abs: "+headerFile.isAbsolute()+", headerParent "+headerParent+", rootOut "+rootOut+", enablePragmaOnce "+enablePragmaOnce);
 
             generateStructBinding(element, struct, isPackageOrType, rootOut, packageName, headerFile, headerParent);
         } catch (final IOException ex) {
@@ -246,7 +257,7 @@ public class CStructAnnotationProcessor extends AbstractProcessor {
             writer = new FileWriter(configFile);
             writer.write("Package "+pakage+"\n");
             writer.write("EmitStruct "+structName+"\n");
-            if( finalType != structName ) {
+            if( !useJavaName && (finalType != structName) ) {
                 // We allow renaming the structType to the element's declaredType (FIELD annotation only)
                 writer.write("RenameJavaType " + struct.name()+" " + declaredType +"\n");
             }
@@ -271,20 +282,18 @@ public class CStructAnnotationProcessor extends AbstractProcessor {
             GlueGen.setDebug(true);
         }
         new GlueGen().run(reader, filename, AnnotationProcessorJavaStructEmitter.class,
-                          includePaths, cfgFiles, outputPath1, false /* copyCPPOutput2Stderr */);
-
+                          includePaths, cfgFiles, outputPath1, false /* copyCPPOutput2Stderr */,
+                          enablePragmaOnce /* enablePragmaOnce */, false /* preserveGeneratedCPP */);
         configFile.delete();
         generatedStructs.add(finalType);
     }
 
     public static class AnnotationProcessorJavaStructEmitter extends JavaEmitter {
 
-        @Override
-        protected PrintWriter openFile(final String filename, final String simpleClassName) throws IOException {
-
+        private boolean filter(final String simpleClassName) {
             if( generatedStructs.contains(simpleClassName) ) {
                 System.err.println("skipping -> " + simpleClassName);
-                return null;
+                return false;
             }
 
             // look for recursive generated structs... keep it DRY
@@ -293,9 +302,31 @@ public class CStructAnnotationProcessor extends AbstractProcessor {
                 System.err.println("generating -> " + simpleClassName);
                 generatedStructs.add(simpleClassName);
             }
-            return super.openFile(filename, simpleClassName);
+            return true;
         }
 
+        @Override
+        protected CCodeUnit openCUnit(final String filename, final String cUnitName) throws IOException {
+            if( !filter(cUnitName) ) {
+                return null;
+            }
+            return super.openCUnit(filename, cUnitName);
+        }
+
+        /**
+         * @param filename the class's full filename to open w/ write access
+         * @param packageName the package name of the class
+         * @param simpleClassName the simple class name, i.e. w/o package name or c-file basename
+         * @param generator informal optional object that is creating this unit, used to be mentioned in a warning message if not null.
+         * @throws IOException
+         */
+        @Override
+        protected JavaCodeUnit openJavaUnit(final String filename, final String packageName, final String simpleClassName) throws IOException {
+            if( !filter(simpleClassName) ) {
+                return null;
+            }
+            return super.openJavaUnit(filename, packageName, simpleClassName);
+        }
     }
 
 }

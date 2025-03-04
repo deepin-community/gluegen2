@@ -37,6 +37,7 @@
         <property name="test.junit.generation.dir" value="${test.base.dir}/${test.junit.generation.rel}" />
 
         <property name="test.jcpp.base.dir" value="${project.root}/jcpp/src/test/java" />
+        <property name="test.jcpp.guava.jar"  value="${project.root}/jcpp/lib/guava-32.1.2-jre.jar" />
 
         <property name="tempdir"      value="${project.root}/build-temp" />
         <property name="build"        location="${project.root}/${rootrel.build}" />
@@ -81,20 +82,27 @@
         </path>
 
         <path id="junit.compile.classpath">
-            <pathelement location="${junit.jar}" />
             <pathelement location="${semver.jar}" />
+            <pathelement location="${junit.jar}" />
             <pathelement location="${gluegen.jar}" />
         </path>
-
-        <path id="junit.run.classpath">
-            <pathelement location="${junit.jar}" />
+        <path id="jcpp.junit.compile.classpath">
             <pathelement location="${semver.jar}" />
+            <pathelement location="${junit.jar}" />
+            <pathelement location="${gluegen.jar}" />
+            <pathelement location="${test.jcpp.guava.jar}" />
+        </path>
+        <path id="junit.run.classpath">
+            <pathelement location="${semver.jar}" />
+            <pathelement location="${junit.jar}" />
             <pathelement location="${TestJarsInJar.jar}" />
             <pathelement location="${gluegen-rt.jar}" />
             <pathelement location="${gluegen.jar}" />
             <pathelement location="${gluegen-test-util.jar}" />
             <pathelement location="${gluegen-test.jar}" />
+            <pathelement location="${test.jcpp.guava.jar}" />
         </path>
+
         <property name="junit.run.jars" value="${junit.jar}${path.separator}${ant.jar}${path.separator}${semver.jar}${path.separator}${TestJarsInJar.jar}${path.separator}${gluegen.root}/${rootrel.build}/gluegen-rt.jar${path.separator}${gluegen.root}/${rootrel.build}/gluegen.jar${path.separator}${build}/gluegen-test-util.jar${path.separator}${build_t}/gluegen-test.jar"/>
         <property name="junit.run.remote.jars" value="${junit.jar}${path.separator}${env.TARGET_ANT_HOME}/lib/ant.jar${path.separator}${env.TARGET_ANT_HOME}/lib/ant-junit.jar${path.separator}${env.TARGET_ANT_HOME}/lib/ant-junit4.jar${path.separator}${semver.jar}${path.separator}${gluegen.root}/make/lib/TestJarsInJar.jar${path.separator}${gluegen.root}/${rootrel.build}/gluegen-rt.jar${path.separator}${gluegen.root}/${rootrel.build}/gluegen.jar${path.separator}${build}/gluegen-test-util.jar${path.separator}${build_t}/gluegen-test.jar"/>
         <property name="junit.run.remote.apks" value="${gluegen.root}/${rootrel.build}/jogamp-android-launcher.apk${path.separator}${ant-junit-all.apk}${path.separator}${gluegen.root}/${rootrel.build}/gluegen-rt-android-${android.abi}.apk${path.separator}${build_t}/gluegen-test.apk${path.separator}${gluegen.root}/make/lib/TestJarsInJar.apk"/>
@@ -125,6 +133,7 @@
         <echo message=" build_t.gen     ${build_t.gen}"/>
 
         <!-- Javac of Annotation Processor dependencies - First -->
+        <!-- This has a hard Java8 target spec test: source, target + bootclasspath -->
         <javac destdir="${build_t.java}" 
                fork="yes"
                includeAntRuntime="false"
@@ -140,6 +149,7 @@
         </javac>
 
         <!-- Annotation Processor - Second -->
+        <!-- This has a hard Java8 target spec test: source, target + bootclasspath -->
         <mkdir dir="${build_t.gen}/classes/com/jogamp/gluegen/test/junit/structgen"/>
         <javac destdir="${build_t.java}" 
                fork="yes"
@@ -158,10 +168,12 @@
             <src path="${build_t.gen}/classes/com/jogamp/gluegen/test/junit/structgen" />
         </javac>
 
-        <!-- Javac All - Third -->
+        <!-- GlueGen Tests - Third -->
+        <!-- This has a hard Java8 target spec test: source, target + bootclasspath -->
         <javac destdir="${build_t.java}" 
                fork="yes"
                includeAntRuntime="false"
+               nativeheaderdir="${build_t.gen}/native/"
                memoryMaximumSize="${javac.memorymax}"
                encoding="UTF-8"
                source="${target.sourcelevel}" 
@@ -171,10 +183,27 @@
             <classpath refid="junit.compile.classpath"/>
             <compilerarg value="-proc:none"/>
             <src path="${test.base.dir}"/>
-            <src path="${test.jcpp.base.dir}"/>
             <src path="${build_t.gen}" />
         </javac>
 
+        <!-- JCPP Tests - Fourth -->
+        <!-- This has a soft Java8 bytecote target only (Using some build time APIs): target -->
+        <javac destdir="${build_t.java}" 
+               fork="yes"
+               includeAntRuntime="false"
+               memoryMaximumSize="${javac.memorymax}"
+               encoding="UTF-8"
+               source="${target.sourcelevel}" 
+               target="${target.targetlevel}" 
+               debug="${javacdebug}" debuglevel="${javacdebuglevel}">
+            <classpath refid="jcpp.junit.compile.classpath"/>
+            <compilerarg value="-proc:none"/>
+            <src path="${test.jcpp.base.dir}"/>
+            <src path="${build_t.gen}" />
+        </javac>
+    </target>
+
+    <target name="jar.build">
         <jar destfile="${gluegen-test-util.jar}">
           <fileset dir="${build_t.java}">
             <include name="${test.junit.util.rel}/**/*.class"/>
@@ -195,7 +224,7 @@
         </jar>
     </target>
 
-    <target name="android.package" depends="java.generate,java.build,native.build" if="isAndroid">
+    <target name="android.package" depends="java.generate,java.build,native.build,jar.build" if="isAndroid">
         <aapt.signed 
             assetsdir="resources/assets-test"
             jarbuilddir="${build_t}"
@@ -206,19 +235,19 @@
             androidmanifest.path="resources/android/AndroidManifest-Test.xml"
             androidresources.path="resources/android/res"
             version.code="${jogamp.version.int}"
-            version.name="${jogamp.version}"
-          />
+            version.name="${jogamp.version}">
+          <d8-classpaths>
+            <arg line="--classpath ${junit.jar}"/>
+            <arg line="--classpath ${semver.jar}"/>
+            <arg line="--classpath ${gluegen.jar}"/>
+            <arg line="--classpath ${gluegen-test-util.jar}"/>
+          </d8-classpaths>
+        </aapt.signed>
     </target>
 
     <target name="c.configure" depends="gluegen.cpptasks.detect.os,gluegen.cpptasks.setup.compiler">
         <property name="compiler.cfg.id" value="${compiler.cfg.id.base}" />
         <property name="linker.cfg.id"   value="${linker.cfg.id.base}" />
-    </target>
-
-    <!-- FIXME: this is a hack; the cpptask should have an option to change the
-                suffix or at least understand the override from dylib to jnilib -->
-    <target name="rename.dylib" if="isOSX">
-        <move file="${src}" tofile="${dest}" />
     </target>
 
     <macrodef name="c.build">
@@ -240,7 +269,7 @@
 
         <condition property="c.compiler.use-debug"><istrue value="${c.compiler.debug}"/></condition>
 
-        <cc outtype="shared" 
+        <cc outtype="${output.lib.type}" 
             objdir="${build_t.obj}" 
             outfile="${build_t.lib}/@{output.lib.name}"
             optimize="${c.compiler.optimise}" 
@@ -443,8 +472,11 @@ chmod 644 ${results}/* \${line.separator}
             <jvmarg value="-Drootrel.build=${rootrel.build}"/>
             <!--
             <jvmarg value="-Djogamp.debug.NativeLibrary=true"/>
-            <jvmarg value="-Djogamp.debug.ProcAddressHelper=true"/>
             <jvmarg value="-Djogamp.debug.JNILibLoader=true"/>
+            <jvmarg value="-Djogamp.debug.TempFileCache=true"/>
+            <jvmarg value="-Djogamp.debug.JarUtil=true"/>
+            <jvmarg value="-Djogamp.debug.TempJarCache=true"/>
+            <jvmarg value="-Djogamp.debug.ProcAddressHelper=true"/>
             <jvmarg value="-verbose:jni"/> 
             <jvmarg value="-client"/>
             -->
@@ -514,9 +546,9 @@ chmod 644 ${results}/* \${line.separator}
 
       -->
 
-    <target name="java.generate" depends="junit.test1.java.generate"/>
+    <target name="java.generate" depends="junit.test1.java.generate, junit.test2.java.generate"/>
 
-    <target name="native.build" depends="c.configure, junit.test1.c.build" unless="build.javaonly">
+    <target name="native.build" depends="c.configure, junit.test1.c.build, junit.test2.c.build" unless="build.javaonly">
       <antcall target="gluegen.cpptasks.striplibs" inheritRefs="true">
           <param name="libdir" value="${build_t.lib}"/>
       </antcall>
@@ -580,7 +612,7 @@ chmod 644 ${results}/* \${line.separator}
                  emitter="com.jogamp.gluegen.procaddress.ProcAddressEmitter"
                  dumpCPP="false"
                  debug="false"
-                 logLevel="INFO">
+                 logLevel="WARNING">
             <classpath refid="gluegen.classpath" />
         </gluegen>
     </target>
@@ -595,21 +627,18 @@ chmod 644 ${results}/* \${line.separator}
 
         <!-- Windows hacks ro make a proper DLL -->
         <linker id="linker.test1.dll.cfg.id" extends="${linker.cfg.id}">
-            <linkerarg value="-Wl,-soname=test1.dll" if="isMingW"/>
-            <linkerarg value="-Wl,--output=test1.dll" if="isMingW"/>
         </linker>
 
         <c.build c.compiler.src.files="junit.test1i.c.src.files"
                  output.lib.name="test1"
                  compiler.cfg.id="${compiler.cfg.id}"
                  linker.cfg.id="linker.test1.dll.cfg.id"/>
+
     </target>
 
     <!-- this is a fixed binding to the test1 implementation -->
     <target name="junit.test1p1.c.build">
         <linker id="linker.test1.fixed.cfg.id" extends="${linker.cfg.id}">
-            <linkerarg value="-Wl,-soname=Bindingtest1p1.dll" if="isMingW"/>
-            <linkerarg value="-Wl,--output=Bindingtest1p1.dll" if="isMingW"/>
             <syslibset dir="${build_t.lib}" libs="test1"/>
         </linker>
 
@@ -625,18 +654,11 @@ chmod 644 ${results}/* \${line.separator}
                  output.lib.name="Bindingtest1p1"
                  compiler.cfg.id="${compiler.cfg.id}"
                  linker.cfg.id="linker.test1.fixed.cfg.id"/>
-
-        <antcall target="rename.dylib" inheritRefs="true">
-            <param name="src"  value="${build_t.lib}/libBindingtest1p1.dylib" />
-            <param name="dest" value="${build_t.lib}/libBindingtest1p1.jnilib" />
-        </antcall>
     </target>
 
     <!-- this is a dynamic lookup binding to the test1 implementation -->
     <target name="junit.test1p2.c.build">
         <linker id="linker.test1.runtime.cfg.id" extends="${linker.cfg.id}">
-            <linkerarg value="-Wl,-soname=Bindingtest1p2.dll" if="isMingW"/>
-            <linkerarg value="-Wl,--output=Bindingtest1p2.dll" if="isMingW"/>
         </linker>
 
         <patternset id="junit.test1p2.c.src.files">
@@ -651,12 +673,6 @@ chmod 644 ${results}/* \${line.separator}
                  output.lib.name="Bindingtest1p2"
                  compiler.cfg.id="${compiler.cfg.id}"
                  linker.cfg.id="linker.test1.runtime.cfg.id"/>
-
-        <antcall target="rename.dylib" inheritRefs="true">
-            <param name="src"  value="${build_t.lib}/libBindingtest1p2.dylib" />
-            <param name="dest" value="${build_t.lib}/libBindingtest1p2.jnilib" />
-        </antcall>
-
     </target>
 
     <!-- 
@@ -664,6 +680,108 @@ chmod 644 ${results}/* \${line.separator}
         junit.test2
 
       -->
+
+    <target name="junit.test2.java.generate">
+        <echo message=" - - - junit.test2.java.generate" />
+
+        <dirset id="stub.includes.fileset.test" dir=".">
+            <include name="${test.junit.generation.dir}/**"/>
+            <include name="${stub.includes.dir}/gluegen" />
+            <include name="${stub.includes.dir}/macosx" />
+            <include name="${stub.includes.dir}/unix" />
+            <include name="${stub.includes.dir}/windows" />
+        </dirset>
+
+        <gluegen src="${test.junit.generation.dir}/test2.h"
+                 outputRootDir="${build_t.gen}"
+                 config="${test.junit.generation.dir}/test2-if.cfg"
+                 literalInclude="${test.junit.generation.dir}"
+                 includeRefid="stub.includes.fileset.test"
+                 emitter="com.jogamp.gluegen.JavaEmitter"
+                 dumpCPP="false"
+                 debug="false"
+                 logLevel="WARNING">
+            <classpath refid="gluegen.classpath" />
+        </gluegen>
+        <antcall target="java.generate.copy2temp" inheritRefs="true" />
+
+        <gluegen src="${test.junit.generation.dir}/test2.h"
+                 outputRootDir="${build_t.gen}"
+                 config="${test.junit.generation.dir}/test2p1.cfg"
+                 literalInclude="${test.junit.generation.dir}"
+                 includeRefid="stub.includes.fileset.test"
+                 emitter="com.jogamp.gluegen.JavaEmitter"
+                 dumpCPP="false"
+                 debug="false"
+                 logLevel="WARNING">
+            <classpath refid="gluegen.classpath" />
+        </gluegen>
+
+        <gluegen src="${test.junit.generation.dir}/test2.h"
+                 outputRootDir="${build_t.gen}"
+                 config="${test.junit.generation.dir}/test2p2.cfg"
+                 literalInclude="${test.junit.generation.dir}"
+                 includeRefid="stub.includes.fileset.test"
+                 emitter="com.jogamp.gluegen.procaddress.ProcAddressEmitter"
+                 dumpCPP="false"
+                 debug="false"
+                 logLevel="WARNING">
+            <classpath refid="gluegen.classpath" />
+        </gluegen>
+    </target>
+
+    <target name="junit.test2.c.build" depends="junit.test2i.c.build, junit.test2p1.c.build, junit.test2p2.c.build" unless="build.javaonly" />
+
+    <!-- this is the test2 implementation -->
+    <target name="junit.test2i.c.build">
+        <patternset id="junit.test2i.c.src.files">
+            <include name="src/junit/${test.junit.generation.rel}/test2.c"/>
+        </patternset>
+
+        <!-- Windows hacks ro make a proper DLL -->
+        <linker id="linker.test2.dll.cfg.id" extends="${linker.cfg.id}">
+        </linker>
+
+        <c.build c.compiler.src.files="junit.test2i.c.src.files"
+                 output.lib.name="test2"
+                 compiler.cfg.id="${compiler.cfg.id}"
+                 linker.cfg.id="linker.test2.dll.cfg.id"/>
+
+    </target>
+
+    <!-- this is a fixed binding to the test2p1 implementation -->
+    <target name="junit.test2p1.c.build">
+        <linker id="linker.test2.fixed.cfg.id" extends="${linker.cfg.id}">
+            <syslibset dir="${build_t.lib}" libs="test2"/>
+        </linker>
+
+        <patternset id="junit.test2p1.c.src.files">
+            <include name="${build_t.gen.rootrel}/native/Bindingtest2p1Impl_JNI.c"/>
+            <include name="${build_t.gen.rootrel}/native/T2_InitializeOptions_JNI.c"/>
+        </patternset>
+
+        <c.build c.compiler.src.files="junit.test2p1.c.src.files"
+                 output.lib.name="Bindingtest2p1"
+                 compiler.cfg.id="${compiler.cfg.id}"
+                 linker.cfg.id="linker.test2.fixed.cfg.id"/>
+    </target>
+
+    <!-- this is a dynamic lookup binding to the test2p2 implementation -->
+    <target name="junit.test2p2.c.build">
+        <linker id="linker.test2.runtime.cfg.id" extends="${linker.cfg.id}">
+        </linker>
+
+        <patternset id="junit.test2p2.c.src.files">
+            <include name="${build_t.gen.rootrel}/native/Bindingtest2p2Impl_JNI.c"/>
+            <include name="${build_t.gen.rootrel}/native/T2_InitializeOptions_JNI.c"/>
+        </patternset>
+
+        <c.build c.compiler.src.files="junit.test2p2.c.src.files"
+                 output.lib.name="Bindingtest2p2"
+                 compiler.cfg.id="${compiler.cfg.id}"
+                 linker.cfg.id="linker.test2.runtime.cfg.id"/>
+    </target>
+
 
     <!-- updates / create the test results zip file -->
     <target name="test-zip-archive" depends="init">

@@ -72,8 +72,8 @@ public class TestTempJarCache extends SingletonJunitCase {
         Assert.assertTrue(fileCache3.getTempDir().exists());
         Assert.assertTrue(fileCache3.getTempDir().isDirectory());
 
-        Assert.assertEquals(fileCache2.getBaseDir(), fileCache3.getBaseDir());
-        Assert.assertEquals(fileCache2.getRootDir(), fileCache3.getRootDir());
+        Assert.assertEquals(TempFileCache.getBaseDir(), TempFileCache.getBaseDir());
+        Assert.assertEquals(TempFileCache.getRootDir(), TempFileCache.getRootDir());
 
         if(shallBeSame) {
             Assert.assertTrue("file caches are not equal", fileCache2.getTempDir().equals(fileCache3.getTempDir()));
@@ -122,7 +122,7 @@ public class TestTempJarCache extends SingletonJunitCase {
         Assert.assertTrue(TempCacheReg.isTempFileCacheUsed());
 
         fileCache = new TempFileCache();
-        Assert.assertTrue(fileCache.isValid());
+        Assert.assertTrue(fileCache.isValid(false));
         System.err.println("tmp dir: "+fileCache.getTempDir());
     }
 
@@ -167,8 +167,8 @@ public class TestTempJarCache extends SingletonJunitCase {
         // Assert.assertFalse(TempCacheReg.isTempJarCacheUsed());
         // Assert.assertFalse(TempJarCache.isInitialized());
         Assert.assertTrue(TempJarCache.initSingleton());
-        Assert.assertTrue(TempCacheReg.isTempJarCacheUsed());
-        Assert.assertTrue(TempJarCache.isInitialized());
+        Assert.assertTrue(TempCacheReg.isTempJarCacheUsed(false));
+        Assert.assertTrue(TempJarCache.isInitialized(false));
     }
 
     @Test
@@ -197,7 +197,7 @@ public class TestTempJarCache extends SingletonJunitCase {
     public void testTempJarCache02AddNativeLibs() throws IOException, IllegalArgumentException, URISyntaxException {
         if(AndroidVersion.isAvailable) { System.err.println("n/a on Android"); return; }
         final Uri.Encoded nativeJarName = Uri.Encoded.cast("gluegen-rt-natives-"+Platform.getOSAndArch()+".jar");
-        final String libBaseName = "gluegen-rt";
+        final String libBaseName = "gluegen_rt";
         final ClassLoader cl = getClass().getClassLoader();
 
         final Uri jarUri = JarUtil.getJarUri(TempJarCache.class.getName(), cl);
@@ -245,17 +245,17 @@ public class TestTempJarCache extends SingletonJunitCase {
         final ClassLoader cl2 = new TestClassLoader(urls, null);
         final ClassLoader cl3 = new TestClassLoader(urls, null);
 
-        Assert.assertFalse(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "isInitialized", null, null, cl2)
+        Assert.assertFalse(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "isInitialized", new Class<?>[] { Boolean.TYPE }, new Object[] { Boolean.FALSE }, cl2)
                            ).booleanValue());
-        Assert.assertFalse(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "isInitialized", null, null, cl3)
+        Assert.assertFalse(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "isInitialized", new Class<?>[] { Boolean.TYPE }, new Object[] { Boolean.FALSE }, cl3)
                            ).booleanValue());
         Assert.assertTrue(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "initSingleton", null, null, cl2)
                            ).booleanValue());
         Assert.assertTrue(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "initSingleton", null, null, cl3)
                            ).booleanValue());
-        Assert.assertTrue(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "isInitialized", null, null, cl2)
+        Assert.assertTrue(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "isInitialized", new Class<?>[] { Boolean.TYPE }, new Object[] { Boolean.FALSE }, cl2)
                            ).booleanValue());
-        Assert.assertTrue(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "isInitialized", null, null, cl3)
+        Assert.assertTrue(( (Boolean) ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "isInitialized", new Class<?>[] { Boolean.TYPE }, new Object[] { Boolean.FALSE }, cl3)
                            ).booleanValue());
 
         final Object fileCache2 = ReflectionUtil.callStaticMethod(TempJarCache.class.getName(), "getTempFileCache", null, null, cl2);

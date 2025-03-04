@@ -1,4 +1,5 @@
-/*
+/**
+ * Copyright (c) 2010-2023 JogAmp Community. All rights reserved.
  * Copyright (c) 2003 Sun Microsystems, Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,15 +66,14 @@ public class FunctionSymbol extends AliasedSymbolImpl implements AliasedSemantic
     private final ASTLocusTag astLocus;
 
     public FunctionSymbol(final String name, final FunctionType type) {
-        super(name);
-        this.type = type;
-        this.astLocus = null;
+        this(name, type, null);
     }
 
     public FunctionSymbol(final String name, final FunctionType type, final ASTLocusTag locus) {
         super(name);
         this.type = type;
         this.astLocus = locus;
+        addAliasedName( type.getCName() ); // be reachable via typename
     }
 
     /** Shallow'ish copy, only aliased names are re-created. */

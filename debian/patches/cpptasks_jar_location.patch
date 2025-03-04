@@ -1,0 +1,16 @@
+Description: providing the path to the Debian-installed cpptasks jar
+Author: Pierre Gruet <pgt@debian.org>
+Forwarded: not-needed
+Last-Update: 2023-04-16
+
+--- a/make/gluegen-cpptasks.xml
++++ b/make/gluegen-cpptasks.xml
+@@ -20,7 +20,7 @@
+ 
+   <!-- import cpptasks -->
+   <!--typedef resource="net/sf/antcontrib/cpptasks/antlib.xml" classpath="${gluegen.root}/make/lib/cpptasks.jar;${gluegen.root}/make/lib/CppTasksGCCNamespaceHack.jar"/-->
+-  <typedef resource="net/sf/antcontrib/cpptasks/antlib.xml" classpath="${gluegen.root}/make/lib/cpptasks.jar"/>
++  <typedef resource="net/sf/antcontrib/cpptasks/antlib.xml" classpath="/usr/share/java/ant-contrib-cpptasks.jar"/>
+ 
+   <!-- 0 fetch environment variable GLUEGEN_CPPTASKS_FILE -> gluegen-cpptasks.file -->
+   <property environment="env" />

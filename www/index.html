@@ -2,13 +2,15 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <link href="../../style.css" rel="stylesheet" type="text/css"/>
+        <link href="../../style-alt1.css" rel="alternate stylesheet" title="default sans-serif font" type="text/css"/>
         <title>Gluegen</title>
     </head>
     <body>
         <div id="container">
             <div id="header">
-                <div id="slogan">JNI binding code generator</div>
+                <div id="slogan">Native Binding Generator for Java™</div>
                 <div id="logo"><a href="http://jogamp.org/">Gluegen</a></div>
             </div>
             <div id="menu">
@@ -28,34 +30,82 @@
                 <div id="sidebar">
                     <h3>Useful Links</h3>
                     <ul>
+                        <li><a href="https://jogamp.org/cgit/gluegen.git/about/">GlueGen Git Repo</a></li>
+                        <li><a href="../../deployment/jogamp-next/javadoc/gluegen/javadoc/">GlueGen API-Doc</a></li>
+                        <li><a href="../doc/GlueGen_Mapping.html">GlueGen Native Data & Function Mapping</a></li>
                         <li><a href="../doc/manual/">GlueGen Manual</a></li>
-                        <li><a href="../../deployment/jogamp-next/javadoc/gluegen/javadoc/">GlueGen Runtime JavaDoc</a></li>
+                        <li><a href="../doc/HowToBuild.html">How To Build</a></li>
+                        <li><a href="../doc/JogAmpMacOSVersions.html">JogAmp's MacOS Version Support</a></li>
                     </ul>
 
                 </div>
                 <div id="text" class="fill">
                     <p>
-                        GlueGen is a tool which automatically generates the Java and JNI code
-                        necessary to call C libraries.
+                        GlueGen is a compiler for function and data-structure declarations, 
+                        generating Java™ and JNI C code offline at compile time 
+                        and allows using native libraries within your Java™ application.
                     </p>
                     <p>
-                        It reads as input ANSI C header files
+                        GlueGen also provides a comprehensive <a href="../../deployment/jogamp-next/javadoc/gluegen/javadoc/">runtime library</a> offering 
+                        <ul>
+                          <li>Support for multi-arch and java code fat-jar deployment</li>
+                          <ul>
+                              <li>Native library including JNI bundle handling and Jar file cache</li>
+                              <li>Platform architecture information retrieval, ELF parser, alignment etc</li>
+                          </ul>
+                          <li>Enhanced NIO buffer handling for pointer, arrays, DMA mapping etc</li>
+                          <li>Network Uri RFC 2396, connection and resource handler to simplify asset loading</li>
+                          <li>Bitstream, hash maps, ringbuffer, sha cumulator, reflection and threading utils</li>
+                          <li>Abstract AudioFormat and AudioSink interfaces, concurrent locks .. and more</li>
+                    </p>
+                    <p>
+                        GlueGen's compiler reads ANSI C header files
                         and separate configuration files which provide control over many
                         aspects of the glue code generation. GlueGen uses a complete ANSI C
                         parser and an internal representation (IR) capable of representing all
                         C types to represent the APIs for which it generates interfaces. It
                         has the ability to perform significant transformations on the IR
-                        before glue code emission. GlueGen is currently powerful enough to
-                        bind even low-level APIs such as the Java Native Interface (JNI) and
-                        the AWT Native Interface (JAWT) back up to the Java programming
-                        language.
+                        before glue code emission. 
                     </p>
-
                     <p>
-                        GlueGen is currently used for the projects
-                        <a href="../../jogl/www/">JOGL</a>,
-                        <a href="../../jocl/www/">JOCL</a> and
-                        <a href="../../joal/www/">JOAL</a>.
+                        GlueGen can produce native foreign function bindings to Java™ as well as
+                        <a href="../doc/GlueGen_Mapping.html#struct-mapping">map native data structures</a> to be fully accessible from Java™ including 
+                        potential calls to <a href="../doc/GlueGen_Mapping.html#struct-function-pointer-support">embedded function pointer</a>.
+                    </p>
+                    <p>
+                        GlueGen supports <a href="../doc/GlueGen_Mapping.html#java-callback">registering Java™ callback methods</a>
+                        to receive asynchronous and off-thread native toolkit events,
+                        where a generated native callback function dispatches the events to Java™.
+                    </p>
+                    <p>
+                        GlueGen also supports <a href="../doc/GlueGen_Mapping.html#oo-style-api-interface-mapping">producing an OO-Style API mapping</a> like <a href="../../jogl/doc/uml/html/index.html">JOGL's incremental OpenGL Profile API levels</a>.
+                    </p>
+                    <p>
+                        GlueGen is capable to bind low-level APIs such as the Java™ Native Interface (JNI) and
+                        the AWT Native Interface (JAWT) back up to the Java programming language.
+                    </p>
+                    <p>
+                        Further, GlueGen supports <a href="../doc/GlueGen_Mapping.html#libraryonload-librarybasename-for-jni_onload-">generating `JNI_OnLoad*(..)` for dynamic and static libraries</a>, also resolving off-thread `JNIEnv*` lookup.
+                    </p>
+                    <p>
+                        GlueGen utilizes <a href="https://jogamp.org/cgit/jcpp.git/about/">JCPP</a>, migrated C preprocessor written in Java™.
+                    </p>
+                    <p>
+                        GlueGen is used for the JogAmp projects
+                        <a href="../../joal/www/">JOAL</a>,
+                        <a href="../../jogl/www/">JOGL</a> and
+                        <a href="../../jocl/www/">JOCL</a>.
+                    </p>
+                    <p>
+                        <h3>Documentation</h3>
+                        <ul>
+                        <li><a href="https://jogamp.org/cgit/gluegen.git/about/">GlueGen Git Repo</a></li>
+                        <li><a href="../../deployment/jogamp-next/javadoc/gluegen/javadoc/">GlueGen API-Doc</a></li>
+                        <li><a href="../doc/GlueGen_Mapping.html">GlueGen Native Data & Function Mapping</a></li>
+                        <li><a href="../doc/manual/">GlueGen Manual</a></li>
+                        <li><a href="../doc/HowToBuild.html">How To Build</a></li>
+                        <li><a href="../doc/JogAmpMacOSVersions.html">JogAmp's MacOS Version Support</a></li>
+                        </ul>
                     </p>
 
                 </div>

@@ -1,0 +1,239 @@
+Description: adding support for LoongArch
+Author: yalingfang <fangyaling@loongson.cn>
+Bug-Debian: https://bugs.debian.org/1057633
+Forwarded: sgothel@jausoft.com
+Reviewed-by: Pierre Gruet <pgt@debian.org>
+Last-Update: 2023-12-14
+
+--- gluegen2-2.5.0+dfsg.orig/make/build.xml
++++ gluegen2-2.5.0+dfsg/make/build.xml
+@@ -306,6 +306,12 @@
+       <property name="linker.cfg.id"                        value="linker.cfg.linux.hppa" /> 
+     </target>
+ 
++    <target name="declare.linux.loongarch64" if="isLinuxLoongArch64">
++      <echo message="Linux.loongarch64" />
++      <property name="compiler.cfg.id"                      value="compiler.cfg.linux" />
++      <property name="linker.cfg.id"                        value="linker.cfg.linux.loongarch64" />
++    </target>
++
+     <target name="declare.linux.mips" if="isLinuxMips">
+       <echo message="Linux.mips" />
+       <property name="compiler.cfg.id"                      value="compiler.cfg.linux" /> 
+@@ -384,7 +390,7 @@
+       <property name="linker.cfg.id"                        value="linker.cfg.linux.sparc" /> 
+     </target>
+     
+-    <target name="declare.linux" depends="declare.linux.x86,declare.linux.amd64,declare.linux.alpha,declare.linux.ia64,declare.linux.hppa,declare.linux.mips,declare.linux.mipsel,declare.linux.mipsn32,declare.linux.mipsn32el,declare.linux.mips64,declare.linux.mips64el,declare.linux.ppc,declare.linux.ppc64,declare.linux.ppc64le,declare.linux.riscv64,declare.linux.s390,declare.linux.s390x,declare.linux.sparc,declare.linux.armv6.armel,declare.linux.armv6.armhf,declare.linux.aarch64" if="isLinux" >
++    <target name="declare.linux" depends="declare.linux.x86,declare.linux.amd64,declare.linux.alpha,declare.linux.ia64,declare.linux.hppa,declare.linux.loongarch64,declare.linux.mips,declare.linux.mipsel,declare.linux.mipsn32,declare.linux.mipsn32el,declare.linux.mips64,declare.linux.mips64el,declare.linux.ppc,declare.linux.ppc64,declare.linux.ppc64le,declare.linux.riscv64,declare.linux.s390,declare.linux.s390x,declare.linux.sparc,declare.linux.armv6.armel,declare.linux.armv6.armhf,declare.linux.aarch64" if="isLinux" >
+       <property name="c.src.dir.os"                         value="unix" />
+     </target>
+ 
+--- gluegen2-2.5.0+dfsg.orig/make/gluegen-cpptasks-base.xml
++++ gluegen2-2.5.0+dfsg/make/gluegen-cpptasks-base.xml
+@@ -46,6 +46,7 @@
+    -   isLinuxARMv6Armhf   (set in gluegen.cpptasks.detected.os.2)
+    -   isLinuxAlpha
+    -   isLinuxHppa
++   -   isLinuxLoongArch64
+    -   isLinuxMips
+    -   isLinuxMipsel
+    -   isLinuxMipsn32
+@@ -148,6 +149,7 @@
+    -   compiler.cfg.linux.aarch64
+    -   compiler.cfg.linux.alpha
+    -   compiler.cfg.linux.hppa
++   -   compiler.cfg.linux.loongarch64
+    -   compiler.cfg.linux.mips
+    -   compiler.cfg.linux.mipsel
+    -   compiler.cfg.linux.mipsn32
+@@ -180,6 +182,7 @@
+    -   linker.cfg.linux.aarch64
+    -   linker.cfg.linux.alpha
+    -   linker.cfg.linux.hppa
++   -   linker.cfg.linux.loongarch64
+    -   linker.cfg.linux.mips
+    -   linker.cfg.linux.mipsel
+    -   linker.cfg.linux.mipsn32
+@@ -521,6 +524,15 @@
+     <condition property="aarch64">
+       <os arch="aarch64" />
+     </condition>
++    <condition property="isLinuxLoongArch64">
++      <and>
++        <istrue value="${isLinux}" />
++        <os arch="loongarch64" />
++      </and>
++    </condition>
++    <condition property="loongarch64">
++      <os arch="loongarch64" />
++    </condition>
+     <condition property="isLinuxRiscV64">
+       <and>
+         <istrue value="${isLinux}" />
+@@ -733,6 +745,10 @@
+     <property name="os.and.arch" value="linux-hppa" />
+   </target>
+ 
++  <target name="gluegen.cpptasks.detect.os.linux.loongarch64" unless="gluegen.cpptasks.detected.os.2" if="isLinuxLoongArch64">
++    <property name="os.and.arch" value="linux-loongarch64" />
++  </target>
++
+   <target name="gluegen.cpptasks.detect.os.linux.mips" unless="gluegen.cpptasks.detected.os.2" if="isLinuxMips">
+     <property name="os.and.arch" value="linux-mips" />
+   </target>
+@@ -801,7 +817,7 @@
+     <property name="os.and.arch" value="android-x86" />
+   </target>
+ 
+-  <target name="gluegen.cpptasks.detect.os.linux" depends="gluegen.cpptasks.detect.os.linux.amd64,gluegen.cpptasks.detect.os.linux.ia64,gluegen.cpptasks.detect.os.linux.x86,gluegen.cpptasks.detect.os.linux.armv6.armel,gluegen.cpptasks.detect.os.linux.armv6.armhf,gluegen.cpptasks.detect.os.android.armv6.armel,gluegen.cpptasks.detect.os.linux.aarch64,gluegen.cpptasks.detect.os.android.armv6.armhf,gluegen.cpptasks.detect.os.android.aarch64,gluegen.cpptasks.detect.os.android.x86,gluegen.cpptasks.detect.os.linux.alpha,gluegen.cpptasks.detect.os.linux.hppa,gluegen.cpptasks.detect.os.linux.mips,gluegen.cpptasks.detect.os.linux.mipsel,gluegen.cpptasks.detect.os.linux.mipsn32,gluegen.cpptasks.detect.os.linux.mipsn32el,gluegen.cpptasks.detect.os.linux.mips64,gluegen.cpptasks.detect.os.linux.mips64el,gluegen.cpptasks.detect.os.linux.ppc,gluegen.cpptasks.detect.os.linux.ppc64,gluegen.cpptasks.detect.os.linux.ppc64le,gluegen.cpptasks.detect.os.linux.riscv64,gluegen.cpptasks.detect.os.linux.s390,gluegen.cpptasks.detect.os.linux.s390x,gluegen.cpptasks.detect.os.linux.sparc" unless="gluegen.cpptasks.detected.os.2" />
++  <target name="gluegen.cpptasks.detect.os.linux" depends="gluegen.cpptasks.detect.os.linux.amd64,gluegen.cpptasks.detect.os.linux.ia64,gluegen.cpptasks.detect.os.linux.x86,gluegen.cpptasks.detect.os.linux.armv6.armel,gluegen.cpptasks.detect.os.linux.armv6.armhf,gluegen.cpptasks.detect.os.android.armv6.armel,gluegen.cpptasks.detect.os.linux.aarch64,gluegen.cpptasks.detect.os.android.armv6.armhf,gluegen.cpptasks.detect.os.android.aarch64,gluegen.cpptasks.detect.os.android.x86,gluegen.cpptasks.detect.os.linux.alpha,gluegen.cpptasks.detect.os.linux.hppa,gluegen.cpptasks.detect.os.linux.loongarch64,gluegen.cpptasks.detect.os.linux.mips,gluegen.cpptasks.detect.os.linux.mipsel,gluegen.cpptasks.detect.os.linux.mipsn32,gluegen.cpptasks.detect.os.linux.mipsn32el,gluegen.cpptasks.detect.os.linux.mips64,gluegen.cpptasks.detect.os.linux.mips64el,gluegen.cpptasks.detect.os.linux.ppc,gluegen.cpptasks.detect.os.linux.ppc64,gluegen.cpptasks.detect.os.linux.ppc64le,gluegen.cpptasks.detect.os.linux.riscv64,gluegen.cpptasks.detect.os.linux.s390,gluegen.cpptasks.detect.os.linux.s390x,gluegen.cpptasks.detect.os.linux.sparc" unless="gluegen.cpptasks.detected.os.2" />
+ 
+   <target name="gluegen.cpptasks.detect.os.osx" unless="gluegen.cpptasks.detected.os.2" if="isOSX">
+     <property name="native.library.prefix"     value="lib" />
+@@ -941,6 +957,7 @@
+     <echo message="LinuxARMv6Armhf=${isLinuxARMv6Armhf}" />
+     <echo message="LinuxAlpha=${isLinuxAlpha}" />
+     <echo message="LinuxHppa=${isLinuxHppa}" />
++    <echo message="LinuxLoongArch64=${isLinuxLoongArch64}" />
+     <echo message="LinuxMips=${isLinuxMips}" />
+     <echo message="LinuxMipsel=${isLinuxMipsel}" />
+     <echo message="LinuxMips=${isLinuxMipsn32}" />
+@@ -1480,6 +1497,9 @@
+     <linker id="linker.cfg.linux.hppa" name="${gcc.compat.compiler}">
+     </linker>
+ 
++    <linker id="linker.cfg.linux.loongarch64" name="${gcc.compat.compiler}">
++    </linker>
++
+     <linker id="linker.cfg.linux.mips" name="${gcc.compat.compiler}">
+     </linker>
+ 
+@@ -1775,6 +1795,17 @@
+       <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
+     </target>
+ 
++    <target name="gluegen.cpptasks.declare.compiler.linux.loongarch64" if="isLinuxLoongArch64">
++      <echo message="Linux.LoongArch64" />
++      <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" />
++      <property name="linker.cfg.id.base"            value="linker.cfg.linux" />
++      <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/loongarch64" 
++                                                      file="${java.home.dir}/jre/lib/loongarch64/libjava.so"/>
++      <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/loongarch64"     
++                                                      file="${java.home.dir}/lib/loongarch64/libjava.so"/>
++      <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
++    </target>
++
+     <target name="gluegen.cpptasks.declare.compiler.linux.mips" if="isLinuxMips">
+       <echo message="Linux.Mips" />
+       <property name="compiler.cfg.id.base"          value="compiler.cfg.linux" /> 
+@@ -1902,7 +1933,7 @@
+       <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
+     </target>
+ 
+-    <target name="gluegen.cpptasks.declare.compiler.linux" depends="gluegen.cpptasks.declare.compiler.linux.x86,gluegen.cpptasks.declare.compiler.linux.amd64,gluegen.cpptasks.declare.compiler.linux.ia64,gluegen.cpptasks.declare.compiler.linux.armv6,gluegen.cpptasks.declare.compiler.linux.aarch64,gluegen.cpptasks.declare.compiler.linux.alpha,gluegen.cpptasks.declare.compiler.linux.hppa,gluegen.cpptasks.declare.compiler.linux.mips,gluegen.cpptasks.declare.compiler.linux.mipsel,gluegen.cpptasks.declare.compiler.linux.mipsn32,gluegen.cpptasks.declare.compiler.linux.mipsn32el,gluegen.cpptasks.declare.compiler.linux.mips64,gluegen.cpptasks.declare.compiler.linux.mips64el,gluegen.cpptasks.declare.compiler.linux.ppc,gluegen.cpptasks.declare.compiler.linux.ppc64,gluegen.cpptasks.declare.compiler.linux.ppc64le,gluegen.cpptasks.declare.compiler.linux.riscv64,gluegen.cpptasks.declare.compiler.linux.s390,gluegen.cpptasks.declare.compiler.linux.s390x,gluegen.cpptasks.declare.compiler.linux.sparc" if="isLinux">
++    <target name="gluegen.cpptasks.declare.compiler.linux" depends="gluegen.cpptasks.declare.compiler.linux.x86,gluegen.cpptasks.declare.compiler.linux.amd64,gluegen.cpptasks.declare.compiler.linux.ia64,gluegen.cpptasks.declare.compiler.linux.armv6,gluegen.cpptasks.declare.compiler.linux.aarch64,gluegen.cpptasks.declare.compiler.linux.alpha,gluegen.cpptasks.declare.compiler.linux.hppa,gluegen.cpptasks.declare.compiler.linux.loongarch64,gluegen.cpptasks.declare.compiler.linux.mips,gluegen.cpptasks.declare.compiler.linux.mipsel,gluegen.cpptasks.declare.compiler.linux.mipsn32,gluegen.cpptasks.declare.compiler.linux.mipsn32el,gluegen.cpptasks.declare.compiler.linux.mips64,gluegen.cpptasks.declare.compiler.linux.mips64el,gluegen.cpptasks.declare.compiler.linux.ppc,gluegen.cpptasks.declare.compiler.linux.ppc64,gluegen.cpptasks.declare.compiler.linux.ppc64le,gluegen.cpptasks.declare.compiler.linux.riscv64,gluegen.cpptasks.declare.compiler.linux.s390,gluegen.cpptasks.declare.compiler.linux.s390x,gluegen.cpptasks.declare.compiler.linux.sparc" if="isLinux">
+         <property name="java.includes.dir.platform" value="${java.includes.dir}/linux" />
+     </target>
+ 
+--- /dev/null
++++ gluegen2-2.5.0+dfsg/make/scripts/make.gluegen.all.linux-loongarch64.sh
+@@ -0,0 +1,24 @@
++#! /bin/sh
++
++#    -Dc.compiler.debug=true \
++#    -Dgluegen.cpptasks.detected.os=true \
++#    -DisUnix=true \
++#    -DisLinux=true \
++#    -DisLinuxX86=true \
++#    -DisX11=true \
++
++MACHINE=loongarch64
++ARCH=loongarch64
++TRIPLET=loongarch64-linux-gnu
++
++export TARGET_PLATFORM_LIBS=/usr/lib/$TRIPLET
++export TARGET_JAVA_LIBS=/usr/lib/jvm/java-11-openjdk-$ARCH/jre/lib/$MACHINE
++
++export GLUEGEN_CPPTASKS_FILE="lib/gluegen-cpptasks-linux-$MACHINE.xml"
++
++#export JOGAMP_JAR_CODEBASE="Codebase: *.jogamp.org"
++export JOGAMP_JAR_CODEBASE="Codebase: *.goethel.localnet"
++
++ant \
++    -Drootrel.build=build-linux-$MACHINE \
++    $* 2>&1 | tee make.gluegen.all.linux-$MACHINE.log
+--- gluegen2-2.5.0+dfsg.orig/src/java/com/jogamp/common/os/Platform.java
++++ gluegen2-2.5.0+dfsg/src/java/com/jogamp/common/os/Platform.java
+@@ -72,6 +72,8 @@ public class Platform extends PlatformPr
+         SPARC,
+ 	/** RISCV */
+ 	RISCV,
++	/** LOONGARCH */
++	LoongArch,
+         /** Mips */
+         MIPS,
+         /** PA RISC */
+@@ -117,6 +119,8 @@ public class Platform extends PlatformPr
+         PPC64(     CPUFamily.PPC,     false),
+         /** RISCV64 64bit, little endian */
+         RISCV_64(   CPUFamily.RISCV,    false),
++        /** LOONGARCH64 64bit, little endian */
++        LOONGARCH_64(   CPUFamily.LoongArch,    false),
+         /** MIPS 64bit, big endian (mips64) or little endian (mipsel64) ? */
+         MIPS_64(   CPUFamily.MIPS,    false),
+         /** Itanium 64bit default, little endian */
+@@ -205,6 +209,8 @@ public class Platform extends PlatformPr
+                 return PPC64;
+             } else if( cpuABILower.startsWith("ppc") ) {
+                 return PPC;
++            } else if( cpuABILower.startsWith("loongarch64") ) {
++                return LOONGARCH_64;
+             } else if( cpuABILower.startsWith("mips64") ) {
+                 return MIPS_64;
+             } else if( cpuABILower.startsWith("mips") ) {
+--- gluegen2-2.5.0+dfsg.orig/src/java/jogamp/common/os/PlatformPropsImpl.java
++++ gluegen2-2.5.0+dfsg/src/java/jogamp/common/os/PlatformPropsImpl.java
+@@ -578,6 +578,7 @@ public abstract class PlatformPropsImpl
+      *   <li>linux-ppc64</li>
+      *   <li>linux-ppc64le</li>
+      *   <li>linux-mips64</li>
++     *   <li>linux-loongarch64</li>
+      *   <li>linux-ia64</li>
+      *   <li>linux-sparcv9</li>
+      *   <li>linux-risc2.0</li>
+@@ -637,6 +638,9 @@ public abstract class PlatformPropsImpl
+             case PPC64:
+                 _and_arch_tmp = littleEndian ? "ppc64le" : "ppc64";
+                 break;
++            case LOONGARCH_64:
++                _and_arch_tmp = "loongarch64";
++                break;
+             case MIPS_64:
+                 _and_arch_tmp = "mips64";
+                 break;
+--- gluegen2-2.5.0+dfsg.orig/src/java/jogamp/common/os/elf/ElfHeaderPart1.java
++++ gluegen2-2.5.0+dfsg/src/java/jogamp/common/os/elf/ElfHeaderPart1.java
+@@ -312,6 +312,7 @@ public class ElfHeaderPart1 {
+     public static final short EM_MICROBLAZE = 189;
+     public static final short EM_CUDA = 190;
+     public static final short EM_RISCV = 243;
++    public static final short EM_LOONGARCH = 258;
+ 
+     public static final boolean isIdentityValid(final byte[] ident) {
+         return ELFMAG0 == ident[0] &&
+@@ -388,6 +389,14 @@ public class ElfHeaderPart1 {
+                 cpuName = "ia64";
+                 abiType = ABIType.GENERIC_ABI;
+                 break;
++            case EM_LOONGARCH:
++                if ( 64 == getArchClassBits() ) {
++                     cpuName = "loongarch64";
++                } else {
++                     cpuName = "loongarch";
++                }
++               abiType = ABIType.GENERIC_ABI;
++                break;
+             case EM_MIPS:
+                  // Can be little-endian or big-endian and 32 or 64 bits
+                 if( 64 == getArchClassBits() ) {

@@ -42,6 +42,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -50,6 +51,7 @@ import jogamp.common.Debug;
 
 import com.jogamp.common.ExceptionUtils;
 import com.jogamp.common.JogampRuntimeException;
+import com.jogamp.common.os.Clock;
 
 public final class ReflectionUtil {
 
@@ -92,7 +94,7 @@ public final class ReflectionUtil {
         public int count;
         @Override
         public String toString() {
-            return String.format("%8.3f ms, %03d invoc, %s", nanoCosts/1e6, count, name);
+            return String.format((Locale)null, "%8.3f ms, %03d invoc, %s", nanoCosts/1e6, count, name);
         }
     }
     public static void resetForNameCount() {
@@ -124,9 +126,9 @@ public final class ReflectionUtil {
 
     private static Class<?> getClassImpl(final String clazzName, final boolean initializeClazz, final ClassLoader cl) throws ClassNotFoundException {
         if(DEBUG_STATS_FORNAME) {
-            final long t0 = System.nanoTime();
+            final long t0 = Clock.currentNanos();
             final Class<?> res = Class.forName(clazzName, initializeClazz, cl);
-            final long t1 = System.nanoTime();
+            final long t1 = Clock.currentNanos();
             final long nanoCosts = t1 - t0;
             synchronized(forNameLock) {
                 forNameCount++;

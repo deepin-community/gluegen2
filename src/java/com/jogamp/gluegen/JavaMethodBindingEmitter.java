@@ -1,4 +1,5 @@
-/*
+/**
+ * Copyright (c) 2010-2023 JogAmp Community. All rights reserved.
  * Copyright (c) 2003 Sun Microsystems, Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +40,7 @@
 
 package com.jogamp.gluegen;
 
+import com.jogamp.gluegen.JavaConfiguration.JavaCallbackInfo;
 import com.jogamp.gluegen.cgram.HeaderParser;
 import com.jogamp.gluegen.cgram.types.AliasedSymbol;
 import com.jogamp.gluegen.cgram.types.ArrayType;
@@ -52,9 +54,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-/**
- * An emitter that emits only the interface for a Java<->C JNI binding.
- */
+/** Emits the Java-side component (interface and.or implementation) of the Java<->C JNI binding to its {@link CodeUnit}, see {@link FunctionEmitter}. */
 public class JavaMethodBindingEmitter extends FunctionEmitter {
 
   public static final EmissionModifier PUBLIC = new EmissionModifier("public");
@@ -69,7 +69,6 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
   protected final CommentEmitter defaultInterfaceCommentEmitter = new InterfaceCommentEmitter();
   protected final boolean tagNativeBinding;
   protected final boolean useNIODirectOnly;
-  protected final MethodBinding binding;
 
   // Exception type raised in the generated code if runtime checks fail
   private final String runtimeExceptionType;
@@ -96,12 +95,14 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
   private String returnedArrayLengthExpression;
   private boolean returnedArrayLengthExpressionOnlyForComments = false;
 
+  private final JavaCallbackEmitter javaCallbackEmitter;
+
   // A suffix used to create a temporary outgoing array of Buffers to
   // represent an array of compound type wrappers
   private static final String COMPOUND_ARRAY_SUFFIX = "_buf_array_copy";
 
   public JavaMethodBindingEmitter(final MethodBinding binding,
-                                  final PrintWriter output,
+                                  final CodeUnit unit,
                                   final String runtimeExceptionType,
                                   final String unsupportedExceptionType,
                                   final boolean emitBody,
@@ -115,8 +116,7 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
                                   final boolean isInterface,
                                   final boolean isNativeMethod,
                                   final boolean isPrivateNativeMethod, final JavaConfiguration configuration) {
-    super(output, isInterface, configuration);
-    this.binding = binding;
+    super(binding, unit, isInterface, configuration);
     this.runtimeExceptionType = runtimeExceptionType;
     this.unsupportedExceptionType = unsupportedExceptionType;
     this.emitBody = emitBody;
@@ -134,12 +134,17 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
     } else {
       setCommentEmitter(defaultInterfaceCommentEmitter);
     }
+    final JavaCallbackInfo javaCallback = cfg.setFuncToJavaCallbackMap.get(binding.getName());
+    if( null != javaCallback ) {
+        javaCallbackEmitter = new JavaCallbackEmitter(cfg, binding, javaCallback, appendSignature(new StringBuilder()).toString());
+    } else {
+        javaCallbackEmitter = null;
+    }
     // !forImplementingMethodCall && !isInterface
   }
 
   public JavaMethodBindingEmitter(final JavaMethodBindingEmitter arg) {
     super(arg);
-    binding                       = arg.binding;
     runtimeExceptionType          = arg.runtimeExceptionType;
     unsupportedExceptionType      = arg.unsupportedExceptionType;
     emitBody                      = arg.emitBody;
@@ -156,9 +161,8 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
     epilogue                      = arg.epilogue;
     returnedArrayLengthExpression = arg.returnedArrayLengthExpression;
     returnedArrayLengthExpressionOnlyForComments = arg.returnedArrayLengthExpressionOnlyForComments;
+    javaCallbackEmitter           = arg.javaCallbackEmitter;
   }
-
-  public final MethodBinding getBinding() { return binding; }
 
   public boolean isNativeMethod() { return isNativeMethod; }
   public boolean isPrivateNativeMethod() { return isPrivateNativeMethod; }
@@ -263,8 +267,8 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
   }
 
   @Override
-  protected void emitReturnType(final PrintWriter writer)  {
-    writer.print(getReturnTypeString(false));
+  protected StringBuilder appendReturnType(final StringBuilder buf) {
+    return buf.append(getReturnTypeString(false));
   }
 
   protected String erasedTypeString(final JavaType type, final boolean skipBuffers) {
@@ -336,25 +340,34 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
   }
 
   @Override
-  protected void emitName(final PrintWriter writer)  {
+  protected StringBuilder appendName(final StringBuilder buf)  {
     if (isPrivateNativeMethod) {
-      writer.print(getNativeImplMethodName());
+      buf.append(getNativeImplMethodName());
     } else if( isInterface()) {
-      writer.print(getInterfaceName());
+      buf.append(getInterfaceName());
     } else {
-      writer.print(getImplName());
+      buf.append(getImplName());
     }
+    return buf;
   }
 
   @Override
-  protected int emitArguments(final PrintWriter writer) {
+  protected int appendArguments(final StringBuilder buf) {
     boolean needComma = false;
     int numEmitted = 0;
 
+    if( hasModifier(JavaMethodBindingEmitter.NATIVE) && binding.isReturnCompoundByValue() ) {
+      buf.append("final Class<?> _clazzBuffers");
+      ++numEmitted;
+      needComma = true;
+    }
     if (isPrivateNativeMethod  && binding.hasContainingType()) {
       // Always emit outgoing "this" argument
-      writer.print("ByteBuffer ");
-      writer.print(javaThisArgumentName());
+      if (needComma) {
+        buf.append(", ");
+      }
+      buf.append("ByteBuffer ");
+      buf.append(javaThisArgumentName());
       ++numEmitted;
       needComma = true;
     }
@@ -378,12 +391,12 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
       }
 
       if (needComma) {
-        writer.print(", ");
+        buf.append(", ");
       }
 
-      writer.print(erasedTypeString(type, false));
-      writer.print(" ");
-      writer.print(getArgumentName(i));
+      buf.append(erasedTypeString(type, false));
+      buf.append(" ");
+      buf.append(getArgumentName(i));
 
       ++numEmitted;
       needComma = true;
@@ -391,12 +404,12 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
       // Add Buffer and array index offset arguments after each associated argument
       if (forDirectBufferImplementation || forIndirectBufferAndArrayImplementation) {
         if (type.isNIOBuffer()) {
-          writer.print(", int " + byteOffsetArgName(i));
+          buf.append(", int " + byteOffsetArgName(i));
           if(!useNIODirectOnly) {
-              writer.print(", boolean " + isNIOArgName(i));
+              buf.append(", boolean " + isNIOArgName(i));
           }
         } else if (type.isNIOBufferArray()) {
-          writer.print(", int[] " +  byteOffsetArrayArgName(i));
+          buf.append(", int[] " +  byteOffsetArrayArgName(i));
         }
       }
 
@@ -405,12 +418,19 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
         if(useNIOOnly) {
             throw new RuntimeException("NIO[Direct]Only "+binding+" is set, but "+getArgumentName(i)+" is a primitive array");
         }
-        writer.print(", int " + offsetArgName(i));
+        buf.append(", int " + offsetArgName(i));
       }
+    }
+    if( hasModifier(JavaMethodBindingEmitter.NATIVE) &&
+        null != javaCallbackEmitter )
+    {
+        if (needComma) {
+            buf.append(", ");
+        }
+        numEmitted += javaCallbackEmitter.appendJavaAdditionalJNIParameter(buf);
     }
     return numEmitted;
   }
-
 
   protected String getNativeImplMethodName() {
     return binding.getImplName() + ( useNIODirectOnly ? "0" : "1" );
@@ -441,46 +461,53 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
   }
 
   @Override
-  protected void emitBody(final PrintWriter writer)  {
-    if (!emitBody) {
-      writer.println(';');
-    } else {
-      final MethodBinding mBinding = getBinding();
-      writer.println("  {");
-      writer.println();
-      if (isUnimplemented) {
-        writer.println("    throw new " + getUnsupportedExceptionType() + "(\"Unimplemented\");");
-      } else {
-        emitPrologueOrEpilogue(prologue, writer);
-        emitPreCallSetup(mBinding, writer);
-        //emitReturnVariableSetup(binding, writer);
-        emitReturnVariableSetupAndCall(mBinding, writer);
-      }
-      writer.println("  }");
+  protected void emitAdditionalCode() {
+    if( null != javaCallbackEmitter && !isPrivateNativeMethod ) {
+        javaCallbackEmitter.emitJavaAdditionalCode(unit, isInterface());
     }
   }
 
-  protected void emitPrologueOrEpilogue(final List<String> code, final PrintWriter writer) {
+  @Override
+  protected void emitBody()  {
+    if (!emitBody) {
+      unit.emitln(";");
+    } else {
+      final MethodBinding mBinding = getBinding();
+      unit.emitln("  {");
+      unit.emitln();
+      if (isUnimplemented) {
+        unit.emitln("    throw new " + getUnsupportedExceptionType() + "(\"Unimplemented\");");
+      } else {
+        emitPrologueOrEpilogue(prologue);
+        emitPreCallSetup(mBinding);
+        //emitReturnVariableSetup(binding, writer);
+        emitReturnVariableSetupAndCall(mBinding);
+      }
+      unit.emitln("  }");
+    }
+  }
+
+  protected void emitPrologueOrEpilogue(final List<String> code) {
     if (code != null) {
       final String[] argumentNames = argumentNameArray();
       for (final String str : code) {
         try {
             final MessageFormat fmt = new MessageFormat(str);
-            writer.println("    " + fmt.format(argumentNames));
+            unit.emitln("    " + fmt.format(argumentNames));
         } catch (final IllegalArgumentException e) {
             // (Poorly) handle case where prologue / epilogue contains blocks of code with braces
-            writer.println("    " + str);
+            unit.emitln("    " + str);
         }
       }
     }
   }
 
-  protected void emitPreCallSetup(final MethodBinding binding, final PrintWriter writer) {
-    emitArrayLengthAndNIOBufferChecks(binding, writer);
-    emitCompoundArrayCopies(binding, writer);
+  protected void emitPreCallSetup(final MethodBinding binding) {
+    emitArrayLengthAndNIOBufferChecks(binding);
+    emitCompoundArrayCopies(binding);
   }
 
-  protected void emitArrayLengthAndNIOBufferChecks(final MethodBinding binding, final PrintWriter writer) {
+  protected void emitArrayLengthAndNIOBufferChecks(final MethodBinding binding) {
       // Check lengths of any incoming arrays if necessary
       for (int i = 0; i < binding.getNumArguments(); i++) {
           final Type type = binding.getCArgumentType(i);
@@ -489,58 +516,58 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
               // Simply add a range check upfront
               final ArrayType arrayType = type.asArray();
               if (javaType.isNIOBuffer()) {
-                  writer.println("    if ( Buffers.remainingElem("+getArgumentName(i)+") < " + arrayType.getLength() + ")");
+                  unit.emitln("    if ( Buffers.remainingElem("+getArgumentName(i)+") < " + arrayType.getLength() + ")");
               } else {
-                  writer.println("    if ( "+getArgumentName(i)+".length < " + arrayType.getLength() + ")");
+                  unit.emitln("    if ( "+getArgumentName(i)+".length < " + arrayType.getLength() + ")");
               }
-              writer.print("      throw new " + getRuntimeExceptionType() +
+              unit.emit("      throw new " + getRuntimeExceptionType() +
                       "(\"Array \\\"" + getArgumentName(i) +
                       "\\\" length (\" + ");
               if (javaType.isNIOBuffer()) {
-                  writer.print("Buffers.remainingElem("+getArgumentName(i)+")");
+                  unit.emit("Buffers.remainingElem("+getArgumentName(i)+")");
               } else {
-                  writer.print(getArgumentName(i)+".length");
+                  unit.emit(getArgumentName(i)+".length");
               }
-              writer.println("+ \") was less than the required (" + arrayType.getLength() + ")\");");
+              unit.emitln("+ \") was less than the required (" + arrayType.getLength() + ")\");");
           }
           if (javaType.isNIOBuffer()) {
               if (useNIODirectOnly) {
-                  writer.println("    if (!Buffers.isDirect(" + getArgumentName(i) + "))");
-                  writer.println("      throw new " + getRuntimeExceptionType() + "(\"Argument \\\"" +
+                  unit.emitln("    if (!Buffers.isDirect(" + getArgumentName(i) + "))");
+                  unit.emitln("      throw new " + getRuntimeExceptionType() + "(\"Argument \\\"" +
                           getArgumentName(i) + "\\\" is not a direct buffer\");");
               } else {
-                  writer.println("    final boolean " + isNIOArgName(i) + " = Buffers.isDirect(" + getArgumentName(i) + ");");
+                  unit.emitln("    final boolean " + isNIOArgName(i) + " = Buffers.isDirect(" + getArgumentName(i) + ");");
               }
           } else if (javaType.isNIOBufferArray()) {
               // All buffers passed down in an array of NIO buffers must be direct
               final String argName = getArgumentName(i);
               final String arrayName = byteOffsetArrayArgName(i);
-              writer.println("    final int[] " + arrayName + " = new int[" + argName + ".length];");
+              unit.emitln("    final int[] " + arrayName + " = new int[" + argName + ".length];");
               // Check direct buffer properties of all buffers within
-              writer.println("    if (" + argName + " != null) {");
-              writer.println("      for (int _ctr = 0; _ctr < " + argName + ".length; _ctr++) {");
-              writer.println("        if (!Buffers.isDirect(" + argName + "[_ctr])) {");
-              writer.println("          throw new " + getRuntimeExceptionType() +
+              unit.emitln("    if (" + argName + " != null) {");
+              unit.emitln("      for (int _ctr = 0; _ctr < " + argName + ".length; _ctr++) {");
+              unit.emitln("        if (!Buffers.isDirect(" + argName + "[_ctr])) {");
+              unit.emitln("          throw new " + getRuntimeExceptionType() +
                       "(\"Element \" + _ctr + \" of argument \\\"" +
                       getArgumentName(i) + "\\\" was not a direct buffer\");");
-              writer.println("        }");
+              unit.emitln("        }");
               // get the Buffer Array offset values and save them into another array to send down to JNI
-              writer.print  ("        " + arrayName + "[_ctr] = Buffers.getDirectBufferByteOffset(");
-              writer.println(argName + "[_ctr]);");
-              writer.println("      }");
-              writer.println("    }");
+              unit.emit  ("        " + arrayName + "[_ctr] = Buffers.getDirectBufferByteOffset(");
+              unit.emitln(argName + "[_ctr]);");
+              unit.emitln("      }");
+              unit.emitln("    }");
           } else if (javaType.isPrimitiveArray()) {
               final String argName = getArgumentName(i);
               final String offsetArg = offsetArgName(i);
-              writer.println("    if(" + argName + " != null && " + argName + ".length <= " + offsetArg + ")");
-              writer.print  ("      throw new " + getRuntimeExceptionType());
-              writer.println("(\"array offset argument \\\"" + offsetArg + "\\\" (\" + " + offsetArg +
+              unit.emitln("    if(" + argName + " != null && " + argName + ".length <= " + offsetArg + ")");
+              unit.emit  ("      throw new " + getRuntimeExceptionType());
+              unit.emitln("(\"array offset argument \\\"" + offsetArg + "\\\" (\" + " + offsetArg +
                       " + \") equals or exceeds array length (\" + " + argName + ".length + \")\");");
           }
       }
   }
 
-  protected void emitCompoundArrayCopies(final MethodBinding binding, final PrintWriter writer) {
+  protected void emitCompoundArrayCopies(final MethodBinding binding) {
     // If the method binding uses outgoing arrays of compound type
     // wrappers, we need to generate a temporary copy of this array
     // into a ByteBuffer[] for processing by the native code
@@ -550,73 +577,85 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
         if (javaType.isArrayOfCompoundTypeWrappers()) {
           final String argName = getArgumentName(i);
           final String tempArrayName = argName + COMPOUND_ARRAY_SUFFIX;
-          writer.println("    final ByteBuffer[] " + tempArrayName + " = new ByteBuffer[" + argName + ".length];");
-          writer.println("    for (int _ctr = 0; _ctr < + " + argName + ".length; _ctr++) {");
-          writer.println("      " + javaType.getName() + " _tmp = " + argName + "[_ctr];");
-          writer.println("      " + tempArrayName + "[_ctr] = ((_tmp == null) ? null : _tmp.getBuffer());");
-          writer.println("    }");
+          unit.emitln("    final ByteBuffer[] " + tempArrayName + " = new ByteBuffer[" + argName + ".length];");
+          unit.emitln("    for (int _ctr = 0; _ctr < + " + argName + ".length; _ctr++) {");
+          unit.emitln("      " + javaType.getName() + " _tmp = " + argName + "[_ctr];");
+          unit.emitln("      " + tempArrayName + "[_ctr] = ((_tmp == null) ? null : _tmp.getBuffer());");
+          unit.emitln("    }");
         }
       }
     }
   }
 
-  protected void emitCall(final MethodBinding binding, final PrintWriter writer) {
-    writer.print(getNativeImplMethodName());
-    writer.print("(");
-    emitCallArguments(binding, writer);
-    writer.print(");");
+  protected void emitCall(final MethodBinding binding) {
+    unit.emit(getNativeImplMethodName());
+    unit.emit("(");
+    emitCallArguments(binding);
+    unit.emit(");");
   }
 
 
-  protected void emitReturnVariableSetupAndCall(final MethodBinding binding, final PrintWriter writer) {
-    writer.print("    ");
+  protected void emitReturnVariableSetupAndCall(final MethodBinding binding) {
     final JavaType returnType = binding.getJavaReturnType();
+
     boolean needsResultAssignment = false;
 
+    if( null != javaCallbackEmitter ) {
+        javaCallbackEmitter.emitJavaSetFuncPreCall(unit);
+    }
     if (!returnType.isVoid()) {
+      unit.emit("    ");
       if (returnType.isCompoundTypeWrapper() ||
           returnType.isNIOBuffer()) {
-        writer.println("final ByteBuffer _res;");
+        unit.emitln("final ByteBuffer _res;");
         needsResultAssignment = true;
       } else if (returnType.isArrayOfCompoundTypeWrappers()) {
-        writer.println("final ByteBuffer[] _res;");
+        unit.emitln("final ByteBuffer[] _res;");
         needsResultAssignment = true;
       } else if (((epilogue != null) && (epilogue.size() > 0)) ||
                  binding.signatureUsesArraysOfCompoundTypeWrappers()) {
-        writer.print("final ");
-        emitReturnType(writer);
-        writer.println(" _res;");
+        unit.emit("final ");
+        emitReturnType();
+        unit.emitln(" _res;");
         needsResultAssignment = true;
       }
     }
 
     if (needsResultAssignment) {
-      writer.print("    _res = ");
+      unit.emit("    _res = ");
     } else {
-      writer.print("    ");
+      unit.emit("    ");
       if (!returnType.isVoid()) {
-        writer.print("return ");
+        unit.emit("return ");
       }
     }
 
-    emitCall(binding, writer);
-    writer.println();
+    emitCall(binding);
+    unit.emitln();
 
-    emitPostCallCleanup(binding, writer);
-    emitPrologueOrEpilogue(epilogue, writer);
+    emitPostCallCleanup(binding);
+    emitPrologueOrEpilogue(epilogue);
     if (needsResultAssignment) {
-      emitCallResultReturn(binding, writer);
+      emitCallResultReturn(binding);
     }
   }
 
-  protected int emitCallArguments(final MethodBinding binding, final PrintWriter writer) {
+  protected int emitCallArguments(final MethodBinding binding) {
     boolean needComma = false;
     int numArgsEmitted = 0;
 
+    if( binding.isReturnCompoundByValue() ) {
+      unit.emit("com.jogamp.common.nio.Buffers.class");
+      needComma = true;
+      ++numArgsEmitted;
+    }
     if (binding.hasContainingType()) {
       // Emit this pointer
       assert(binding.getContainingType().isCompoundTypeWrapper());
-      writer.print("getBuffer()");
+      if (needComma) {
+        unit.emit(", ");
+      }
+      unit.emit("getBuffer()");
       needComma = true;
       ++numArgsEmitted;
     }
@@ -635,90 +674,98 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
       }
 
       if (needComma) {
-        writer.print(", ");
+        unit.emit(", ");
       }
 
       if (type.isCompoundTypeWrapper()) {
-        writer.print("((");
+        unit.emit("((");
       }
 
       if (type.isNIOBuffer()) {
           if(type.isNIOPointerBuffer()) {
               if (useNIODirectOnly) {
-                  writer.print( getArgumentName(i)+ " != null ? " + getArgumentName(i) + ".getBuffer() : null");
+                  unit.emit( getArgumentName(i)+ " != null ? " + getArgumentName(i) + ".getBuffer() : null");
               } else {
-                  writer.print( isNIOArgName(i) + " ? ( " + getArgumentName(i)+ " != null ? " + getArgumentName(i) + ".getBuffer() : null )");
-                  writer.print( " : Buffers.getArray(" + getArgumentName(i) + ")" );
+                  unit.emit( isNIOArgName(i) + " ? ( " + getArgumentName(i)+ " != null ? " + getArgumentName(i) + ".getBuffer() : null )");
+                  unit.emit( " : Buffers.getArray(" + getArgumentName(i) + ")" );
               }
           } else {
               if (useNIODirectOnly) {
-                  writer.print( getArgumentName(i) );
+                  unit.emit( getArgumentName(i) );
               } else {
-                  writer.print( isNIOArgName(i) + " ? " + getArgumentName(i) + " : Buffers.getArray(" + getArgumentName(i) + ")" );
+                  unit.emit( isNIOArgName(i) + " ? " + getArgumentName(i) + " : Buffers.getArray(" + getArgumentName(i) + ")" );
               }
           }
       } else if (type.isArrayOfCompoundTypeWrappers()) {
-          writer.print(getArgumentName(i) + COMPOUND_ARRAY_SUFFIX);
+          unit.emit(getArgumentName(i) + COMPOUND_ARRAY_SUFFIX);
       } else {
-          writer.print(getArgumentName(i));
+          unit.emit(getArgumentName(i));
       }
 
       if (type.isCompoundTypeWrapper()) {
-        writer.print(" == null) ? null : ");
-        writer.print(getArgumentName(i));
-        writer.print(".getBuffer())");
+        unit.emit(" == null) ? null : ");
+        unit.emit(getArgumentName(i));
+        unit.emit(".getBuffer())");
       }
 
       if (type.isNIOBuffer()) {
         if (useNIODirectOnly) {
-          writer.print( ", Buffers.getDirectBufferByteOffset(" + getArgumentName(i) + ")");
+          unit.emit( ", Buffers.getDirectBufferByteOffset(" + getArgumentName(i) + ")");
         } else {
-          writer.print( ", " + isNIOArgName(i) + " ? Buffers.getDirectBufferByteOffset(" + getArgumentName(i) + ")");
-          writer.print(        " : Buffers.getIndirectBufferByteOffset(" + getArgumentName(i) + ")");
+          unit.emit( ", " + isNIOArgName(i) + " ? Buffers.getDirectBufferByteOffset(" + getArgumentName(i) + ")");
+          unit.emit(        " : Buffers.getIndirectBufferByteOffset(" + getArgumentName(i) + ")");
         }
       } else if (type.isNIOBufferArray()) {
-        writer.print(", " + byteOffsetArrayArgName(i));
+        unit.emit(", " + byteOffsetArrayArgName(i));
       } else if (type.isPrimitiveArray()) {
         if(type.isFloatArray()) {
-          writer.print(", Buffers.SIZEOF_FLOAT * ");
+          unit.emit(", Buffers.SIZEOF_FLOAT * ");
         } else if(type.isDoubleArray()) {
-          writer.print(", Buffers.SIZEOF_DOUBLE * ");
+          unit.emit(", Buffers.SIZEOF_DOUBLE * ");
         } else if(type.isByteArray()) {
-          writer.print(", ");
+          unit.emit(", ");
         } else if(type.isLongArray()) {
-          writer.print(", Buffers.SIZEOF_LONG * ");
+          unit.emit(", Buffers.SIZEOF_LONG * ");
         } else if(type.isShortArray()) {
-          writer.print(", Buffers.SIZEOF_SHORT * ");
+          unit.emit(", Buffers.SIZEOF_SHORT * ");
         } else if(type.isIntArray()) {
-          writer.print(", Buffers.SIZEOF_INT * ");
+          unit.emit(", Buffers.SIZEOF_INT * ");
         } else {
           throw new GlueGenException("Unsupported type for calculating array offset argument for " +
                                      getArgumentName(i) +
                                      " -- error occurred while processing Java glue code for " + getCSymbol().getAliasedString(),
                                      getCSymbol().getASTLocusTag());
         }
-        writer.print(offsetArgName(i));
+        unit.emit(offsetArgName(i));
       }
 
       if (type.isNIOBuffer()) {
         if (!useNIODirectOnly) {
-            writer.print( ", " + isNIOArgName(i) );
+            unit.emit( ", " + isNIOArgName(i) );
         }
       } else if (type.isPrimitiveArray()) {
         if (useNIOOnly) {
             throw new GlueGenException("NIO[Direct]Only "+binding+" is set, but "+getArgumentName(i)+" is a primitive array",
                                        getCSymbol().getASTLocusTag());
         }
-        writer.print( ", false");
+        unit.emit( ", false");
       }
 
       needComma = true;
       ++numArgsEmitted;
     }
+    if( null != javaCallbackEmitter ) {
+        if (needComma) {
+            unit.emit(", ");
+        }
+        final StringBuilder buf = new StringBuilder();
+        numArgsEmitted += javaCallbackEmitter.appendJavaAdditionalJNIArguments(buf);
+        unit.emit(buf.toString());
+    }
     return numArgsEmitted;
   }
 
-  protected void emitPostCallCleanup(final MethodBinding binding, final PrintWriter writer) {
+  protected void emitPostCallCleanup(final MethodBinding binding) {
     if (binding.signatureUsesArraysOfCompoundTypeWrappers()) {
       // For each such array, we need to take the ByteBuffer[] that
       // came back from the C method invocation and wrap the
@@ -727,65 +774,65 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
         final JavaType javaArgType = binding.getJavaArgumentType(i);
         if ( javaArgType.isArrayOfCompoundTypeWrappers() && !javaArgType.getElementCType().isBaseTypeConst() ) {
           final String argName = binding.getArgumentName(i);
-          writer.println("    for (int _ctr = 0; _ctr < " + argName + ".length; _ctr++) {");
-          writer.println("      if ((" + argName + "[_ctr] == null && " + argName + COMPOUND_ARRAY_SUFFIX + "[_ctr] == null) ||");
-          writer.println("          (" + argName + "[_ctr] != null && " + argName + "[_ctr].getBuffer() == " + argName + COMPOUND_ARRAY_SUFFIX + "[_ctr])) {");
-          writer.println("        // No copy back needed");
-          writer.println("      } else {");
-          writer.println("        if (" + argName + COMPOUND_ARRAY_SUFFIX + "[_ctr] == null) {");
-          writer.println("          " + argName + "[_ctr] = null;");
-          writer.println("        } else {");
-          writer.println("          " + argName + "[_ctr] = " + javaArgType.getName() + ".create(" + argName + COMPOUND_ARRAY_SUFFIX + "[_ctr]);");
-          writer.println("        }");
-          writer.println("      }");
-          writer.println("    }");
+          unit.emitln("    for (int _ctr = 0; _ctr < " + argName + ".length; _ctr++) {");
+          unit.emitln("      if ((" + argName + "[_ctr] == null && " + argName + COMPOUND_ARRAY_SUFFIX + "[_ctr] == null) ||");
+          unit.emitln("          (" + argName + "[_ctr] != null && " + argName + "[_ctr].getBuffer() == " + argName + COMPOUND_ARRAY_SUFFIX + "[_ctr])) {");
+          unit.emitln("        // No copy back needed");
+          unit.emitln("      } else {");
+          unit.emitln("        if (" + argName + COMPOUND_ARRAY_SUFFIX + "[_ctr] == null) {");
+          unit.emitln("          " + argName + "[_ctr] = null;");
+          unit.emitln("        } else {");
+          unit.emitln("          " + argName + "[_ctr] = " + javaArgType.getName() + ".create(" + argName + COMPOUND_ARRAY_SUFFIX + "[_ctr]);");
+          unit.emitln("        }");
+          unit.emitln("      }");
+          unit.emitln("    }");
         }
       }
     }
   }
 
-  protected void emitCallResultReturn(final MethodBinding binding, final PrintWriter writer) {
+  protected void emitCallResultReturn(final MethodBinding binding) {
     final JavaType returnType = binding.getJavaReturnType();
 
     if (returnType.isCompoundTypeWrapper()) {
       // Details are handled in JavaEmitter's struct handling!
-      writer.println("    if (_res == null) return null;");
-      writer.println("    return " + returnType.getName() + ".create(Buffers.nativeOrder(_res));");
+      unit.emitln("    if (_res == null) return null;");
+      unit.emitln("    return " + returnType.getName() + ".create(Buffers.nativeOrder(_res));");
     } else if (returnType.isNIOBuffer()) {
-      writer.println("    if (_res == null) return null;");
-      writer.println("    Buffers.nativeOrder(_res);");
+      unit.emitln("    if (_res == null) return null;");
+      unit.emitln("    Buffers.nativeOrder(_res);");
       if (!returnType.isNIOByteBuffer()) {
         // See whether we have to expand pointers to longs
         if (getBinding().getCReturnType().pointerDepth() >= 2) {
           if (returnType.isNIOPointerBuffer()) {
-              writer.println("    return PointerBuffer.wrap(_res);");
+              unit.emitln("    return PointerBuffer.wrap(_res);");
           } else if (returnType.isNIOLongBuffer()) {
-              writer.println("    return _res.asLongBuffer();");
+              unit.emitln("    return _res.asLongBuffer();");
           } else {
             throw new GlueGenException("While emitting glue code for " + getCSymbol().getAliasedString() +
                                        ": can not legally make pointers opaque to anything but PointerBuffer or LongBuffer/long",
                                        getCSymbol().getASTLocusTag());
           }
         } else if (getBinding().getCReturnType().pointerDepth() == 1 && returnType.isNIOLongBuffer()) {
-          writer.println("    return _res.asLongBuffer();");
+          unit.emitln("    return _res.asLongBuffer();");
         } else {
           final String returnTypeName = returnType.getName().substring("java.nio.".length());
-          writer.println("    return _res.as" + returnTypeName + "();");
+          unit.emitln("    return _res.as" + returnTypeName + "();");
         }
       } else {
-        writer.println("    return _res;");
+        unit.emitln("    return _res;");
       }
     } else if (returnType.isArrayOfCompoundTypeWrappers()) {
-      writer.println("    if (_res == null) return null;");
-      writer.println("    final " + getReturnTypeString(false) + " _retarray = new " + getReturnTypeString(true) + "[_res.length];");
-      writer.println("    for (int _count = 0; _count < _res.length; _count++) {");
-      writer.println("      _retarray[_count] = " + getReturnTypeString(true) + ".create(_res[_count]);");
-      writer.println("    }");
-      writer.println("    return _retarray;");
+      unit.emitln("    if (_res == null) return null;");
+      unit.emitln("    final " + getReturnTypeString(false) + " _retarray = new " + getReturnTypeString(true) + "[_res.length];");
+      unit.emitln("    for (int _count = 0; _count < _res.length; _count++) {");
+      unit.emitln("      _retarray[_count] = " + getReturnTypeString(true) + ".create(_res[_count]);");
+      unit.emitln("    }");
+      unit.emitln("    return _retarray;");
     } else {
       // Assume it's a primitive type or other type we don't have to
       // do any conversion on
-      writer.println("    return _res;");
+      unit.emitln("    return _res;");
     }
   }
 
@@ -913,12 +960,11 @@ public class JavaMethodBindingEmitter extends FunctionEmitter {
     }
   }
 
-    protected class InterfaceCommentEmitter extends JavaMethodBindingEmitter.DefaultCommentEmitter {
-
-        @Override
-        protected void emitBeginning(final FunctionEmitter emitter, final PrintWriter writer) {
-            writer.print("Interface to C language function: <br> ");
-        }
+  protected class InterfaceCommentEmitter extends JavaMethodBindingEmitter.DefaultCommentEmitter {
+    @Override
+    protected void emitBeginning(final FunctionEmitter emitter, final PrintWriter writer) {
+        writer.print("Interface to C language function: <br> ");
     }
+  }
 }
 
