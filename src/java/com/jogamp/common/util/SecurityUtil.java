@@ -27,7 +27,6 @@
  */
 package com.jogamp.common.util;
 
-import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.CodeSource;
 import java.security.Permission;
@@ -35,19 +34,63 @@ import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 
+import jogamp.common.os.PlatformPropsImpl;
+
 public class SecurityUtil {
+    @SuppressWarnings("removal")
     private static final SecurityManager securityManager;
     private static final Permission allPermissions;
     private static final boolean DEBUG = false;
 
+    /**
+     * Call wrapper for {@link System#getSecurityManager()}.
+     * <p>
+     * {@link System#getSecurityManager()} is deprecated
+     * since Java 17 (JEP 411) and earmarked to be removed.<br/>
+     * </p>
+     * <p>
+     * On a Java 17 machine, this method will simply return null.
+     * </p>
+     */
+    @SuppressWarnings({ "deprecation", "removal" })
+    public static final SecurityManager getSecurityManager() {
+        if( PlatformPropsImpl.JAVA_17 ) {
+            return null;
+        } else {
+            return System.getSecurityManager();
+        }
+    }
+
+    /**
+     * Call wrapper for {@link java.security.AccessController#doPrivileged(PrivilegedAction)}.
+     * <p>
+     * {@link java.security.AccessController#doPrivileged(PrivilegedAction)} is deprecated
+     * since Java 17 (JEP 411) and earmarked to be removed.<br/>
+     * </p>
+     * <p>
+     * On a Java 17 machine, this method will simply invoke the given PrivilegedAction<T>.
+     * </p>
+     * @param <T> return type of PrivilegedAction<T>
+     * @param o the PrivilegedAction<T>
+     * @return the return type
+     */
+    @SuppressWarnings({ "deprecation", "removal" })
+    public static <T> T doPrivileged(final PrivilegedAction<T> o) {
+        if( PlatformPropsImpl.JAVA_17 ) {
+            return o.run();
+        } else {
+            return java.security.AccessController.doPrivileged( o );
+        }
+    }
+
     static {
         allPermissions = new AllPermission();
-        securityManager = System.getSecurityManager();
+        securityManager = getSecurityManager();
 
         if( DEBUG ) {
             final boolean hasAllPermissions;
             {
-                final ProtectionDomain insecPD = AccessController.doPrivileged(new PrivilegedAction<ProtectionDomain>() {
+                final ProtectionDomain insecPD = doPrivileged(new PrivilegedAction<ProtectionDomain>() {
                                                 @Override
                                                 public ProtectionDomain run() {
                                                     return SecurityUtil.class.getProtectionDomain();
@@ -64,7 +107,7 @@ public class SecurityUtil {
 
             System.err.println("SecurityUtil: Has SecurityManager: "+ ( null != securityManager ) ) ;
             System.err.println("SecurityUtil: Has AllPermissions: "+hasAllPermissions);
-            final Certificate[] certs = AccessController.doPrivileged(new PrivilegedAction<Certificate[]>() {
+            final Certificate[] certs = doPrivileged(new PrivilegedAction<Certificate[]>() {
                                                 @Override
                                                 public Certificate[] run() {
                                                     return getCerts(SecurityUtil.class);

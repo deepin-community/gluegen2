@@ -1,0 +1,3 @@
+# The package embeds the full source, and hence it includes some text files
+# for test purposes.
+package-contains-documentation-outside-usr-share-doc [usr/share/gluegen2/*]

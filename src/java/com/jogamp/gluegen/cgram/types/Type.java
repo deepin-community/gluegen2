@@ -1,6 +1,6 @@
 /*
+ * Copyright (c) 2010-2023 JogAmp Community. All rights reserved.
  * Copyright (c) 2003 Sun Microsystems, Inc. All Rights Reserved.
- * Copyright (c) 2010 JogAmp Community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -170,11 +170,11 @@ public abstract class Type implements SemanticEqualityOp, ASTLocusTagProvider {
       sb.append(val);
       return sb;
   }
-  // For debugging
-  public final String getDebugString() {
-    final StringBuilder sb = new StringBuilder();
+  public final StringBuilder getSignature(StringBuilder sb) {
+    if( null == sb ) {
+        sb = new StringBuilder();
+    }
     boolean prepComma = false;
-    sb.append("CType[");
     sb.append("(").append(getClass().getSimpleName()).append(") ");
     if( isTypedef() ) {
         sb.append("typedef ");
@@ -184,19 +184,22 @@ public abstract class Type implements SemanticEqualityOp, ASTLocusTagProvider {
     } else {
         sb.append("ANON");
     }
-    final Type targetType = getTargetType();
-    if( null != targetType && this != targetType ) {
+    if ( isFunctionPointer() ) {
         sb.append(" -> ");
-        if (!targetType.isFunction()) {
+        final FunctionType ft = getTargetFunction();
+        sb.append(ft.toString(null /* functionName */, null /* callingConvention */, false, true));
+    } else {
+        final Type targetType = getTargetType();
+        if( null != targetType && this != targetType ) {
+            sb.append(" -> ");
             sb.append("(" + targetType.toString() + ") * " + getCVAttributesString());
-        } else {
-            sb.append(((FunctionType) targetType).toString(null /* functionName */, null /* callingConvention */, false, true));
         }
     }
+
     if( GlueGen.debug() ) {
         sb.append(", o=0x"+Integer.toHexString(objHash()));
     }
-    sb.append(", size ");
+    sb.append(", size");
     prepComma=true;
     if( null != size ) {
         final long mdSize;
@@ -211,15 +214,14 @@ public abstract class Type implements SemanticEqualityOp, ASTLocusTagProvider {
     } else {
         sb.append(" ZERO");
     }
-    append(sb, "[", prepComma); prepComma=false;
     {
         append(sb, "const[", prepComma); prepComma=false;
         {
             if( isConstTypedef() ) {
-                append(sb, "type ", prepComma);  prepComma=true;
+                append(sb, "typedef", prepComma);  prepComma=true;
             }
             if( isConstRaw() ) {
-                append(sb, "inst -> ", prepComma);  prepComma=false;
+                append(sb, "native", prepComma);  prepComma=true;
             }
             if( isConst() ) {
                 append(sb, "true]", prepComma);
@@ -228,48 +230,62 @@ public abstract class Type implements SemanticEqualityOp, ASTLocusTagProvider {
             }
             prepComma=true;
         }
-        if( isVolatile() ) {
-            append(sb, "volatile ", prepComma);  prepComma=true;
+        append(sb, "is[", prepComma); prepComma=false;
+        {
+            if( isVolatile() ) {
+                append(sb, "volatile ", prepComma);  prepComma=true;
+            }
+            if( isPrimitive() ) {
+                append(sb, "primitive", prepComma); prepComma=true;
+            }
+            if( isPointer() ) {
+                append(sb, "pointer*"+pointerDepth(), prepComma); prepComma=true;
+            }
+            if( isArray() ) {
+                append(sb, "array*"+arrayDimension(), prepComma); prepComma=true;
+            }
+            if( isBit() ) {
+                append(sb, "bit", prepComma); prepComma=true;
+            }
+            if( isCompound() ) {
+                append(sb, "struct{", prepComma).append(asCompound().getStructName()).append(": ").append(asCompound().getNumFields());
+                append(sb, "}", prepComma); prepComma=true;
+            }
+            if( isDouble() ) {
+                append(sb, "double", prepComma); prepComma=true;
+            }
+            if( isEnum() ) {
+                final EnumType eT = asEnum();
+                append(sb, "enum ", prepComma).append(" [").append(eT.getUnderlyingType()).append("] {").append(eT.getNumEnumerates()).append(": ");
+                eT.appendEnums(sb, false);
+                prepComma=true;
+            }
+            if( isFloat() ) {
+                append(sb, "float", prepComma); prepComma=true;
+            }
+            if( isFunction() ) {
+                append(sb, "function", prepComma); prepComma=true;
+            }
+            if( isFunctionPointer() ) {
+                append(sb, "funcPointer", prepComma); prepComma=true;
+            }
+            if( isInt() ) {
+                append(sb, "int", prepComma); prepComma=true;
+            }
+            if( isVoid() ) {
+                append(sb, "void", prepComma); prepComma=true;
+            }
         }
-        if( isPointer() ) {
-            append(sb, "pointer*"+pointerDepth(), prepComma); prepComma=true;
-        }
-        if( isArray() ) {
-            append(sb, "array*"+arrayDimension(), prepComma); prepComma=true;
-        }
-        if( isBit() ) {
-            append(sb, "bit", prepComma); prepComma=true;
-        }
-        if( isCompound() ) {
-            append(sb, "struct{", prepComma).append(asCompound().getStructName()).append(": ").append(asCompound().getNumFields());
-            append(sb, "}", prepComma); prepComma=true;
-        }
-        if( isDouble() ) {
-            append(sb, "double", prepComma); prepComma=true;
-        }
-        if( isEnum() ) {
-            final EnumType eT = asEnum();
-            append(sb, "enum ", prepComma).append(" [").append(eT.getUnderlyingType()).append("] {").append(eT.getNumEnumerates()).append(": ");
-            eT.appendEnums(sb, false);
-            prepComma=true;
-        }
-        if( isFloat() ) {
-            append(sb, "float", prepComma); prepComma=true;
-        }
-        if( isFunction() ) {
-            append(sb, "function", prepComma); prepComma=true;
-        }
-        if( isFunctionPointer() ) {
-            append(sb, "funcPointer", prepComma); prepComma=true;
-        }
-        if( isInt() ) {
-            append(sb, "int", prepComma); prepComma=true;
-        }
-        if( isVoid() ) {
-            append(sb, "void", prepComma); prepComma=true;
-        }
-        sb.append("]");
+        append(sb, "]", false); prepComma=true;
     }
+    return sb;
+  }
+
+  // For debugging
+  public final String getDebugString() {
+    final StringBuilder sb = new StringBuilder();
+    sb.append("CType[");
+    getSignature(sb);
     sb.append("]");
     return sb.toString();
   }
@@ -336,6 +352,9 @@ public abstract class Type implements SemanticEqualityOp, ASTLocusTagProvider {
   public final boolean isTypedef() {
     return isTypedef;
   }
+
+  /** Returns true if {@link #getSize()} is not null, otherwise false. */
+  public final boolean hasSize() { return null != size; }
 
   /** SizeThunk which computes size of this type in bytes. */
   public final SizeThunk getSize()    { return size; }
@@ -419,7 +438,7 @@ public abstract class Type implements SemanticEqualityOp, ASTLocusTagProvider {
    * </p>
    */
   public final boolean isBaseTypeConst() {
-    return getBaseElementType().isConst();
+    return getBaseType().isConst();
   }
 
   /** Hashcode for Types. */
@@ -554,20 +573,49 @@ public abstract class Type implements SemanticEqualityOp, ASTLocusTagProvider {
   }
 
   /**
-   * Helper method to returns the bottom-most element type of this type.
+   * Helper method to returns the bottom-most element type of this type,
+   * i.e. returns `{@code type}` if this-type is `{@code type}*`, `{@code type}**`, `{@code type}[]` or `{@code type}[][]`.
    * <p>
    * If this is a multidimensional array or pointer method returns the bottom-most element type,
    * otherwise this.
    * </p>
+   * <p>
+   * In case a {@link #isFunctionPointer()} type is reached, traversing ends and the function {@link PointerType} is returned.
+   * </p>
+   * @see #getTargetType()
+   * @see #getTargetFunction()
    */
-  public Type getBaseElementType() {
+  public Type getBaseType() {
       return this;
   }
 
   /**
-   * Helper method to returns the target type of this type, in case another type is being referenced.
+   * Helper method to returns the target type of this type, in case another type is being referenced,
+   * i.e. returns `{@code type}` if this-type is `{@code type}*` or `{@code type}[]`
+   * and returns `{@code type}*` if this-type is `{@code type}**` or `{@code type}[][]`.
+   * <p>
+   * If this is an array or pointer method returns the next target element type, otherwise `this`.
+   * </p>
+   * <p>
+   * In this is a {@link #isFunctionPointer()} type, `this` function {@link PointerType} is returned.
+   * </p>
+   * @see #getBaseType()
+   * @see #getTargetFunction()
    */
   public Type getTargetType() {
       return this;
   }
+
+  /**
+   * Return {@link #getBaseType()} if {@link #isArray()} or returns {@link #getTargetType()} otherwise.
+   */
+  public Type getArrayBaseOrPointerTargetType() {
+      return this;
+  }
+
+  /**
+   * Returns the target {@link FunctionType} if this type is {@link #isFunctionPointer()}.
+   */
+  public FunctionType getTargetFunction() { return null; }
+
 }

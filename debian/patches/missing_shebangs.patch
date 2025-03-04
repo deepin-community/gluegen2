@@ -1,0 +1,89 @@
+Description: some .sh files are missing a shebang; adding it
+Author: Pierre Gruet <pgt@debian.org>
+Forwarded: sgothel@jausoft.com
+Last-Update: 2023-03-17
+
+--- a/make/scripts/adb-install-all-aarch64.sh
++++ b/make/scripts/adb-install-all-aarch64.sh
+@@ -1,2 +1,4 @@
++#!/bin/sh
++
+ adb $* install ../build-android-aarch64/jogamp-android-launcher.apk
+ adb $* install ../build-android-aarch64/gluegen-rt-android-aarch64.apk
+--- a/make/scripts/adb-install-all-armv6.sh
++++ b/make/scripts/adb-install-all-armv6.sh
+@@ -1,2 +1,4 @@
++#! /bin/sh
++
+ adb $* install ../build-android-armv6/jogamp-android-launcher.apk
+ adb $* install ../build-android-armv6/gluegen-rt-android-armv6.apk
+--- a/make/scripts/adb-install-all-x86.sh
++++ b/make/scripts/adb-install-all-x86.sh
+@@ -1,2 +1,4 @@
++#! /bin/sh
++
+ adb $* install ../build-android-x86/jogamp-android-launcher.apk
+ adb $* install ../build-android-x86/gluegen-rt-android-x86.apk
+--- a/make/scripts/adb-logcat.sh
++++ b/make/scripts/adb-logcat.sh
+@@ -1,3 +1,5 @@
++#! /bin/sh
++
+ sdir=`dirname $0`
+ 
+ adb $* logcat -c
+--- a/make/scripts/adb-reinstall-all-aarch64.sh
++++ b/make/scripts/adb-reinstall-all-aarch64.sh
+@@ -1,3 +1,5 @@
++#! /bin/sh
++
+ sdir=`dirname $0`
+ 
+ $sdir/adb-uninstall-all.sh $*
+--- a/make/scripts/adb-reinstall-all-armv6.sh
++++ b/make/scripts/adb-reinstall-all-armv6.sh
+@@ -1,3 +1,5 @@
++#! /bin/sh
++
+ sdir=`dirname $0`
+ 
+ $sdir/adb-uninstall-all.sh $*
+--- a/make/scripts/adb-reinstall-all-x86.sh
++++ b/make/scripts/adb-reinstall-all-x86.sh
+@@ -1,3 +1,5 @@
++#! /bin/sh
++
+ sdir=`dirname $0`
+ 
+ $sdir/adb-uninstall-all.sh $*
+--- a/make/scripts/adb-uninstall-all.sh
++++ b/make/scripts/adb-uninstall-all.sh
+@@ -1,2 +1,4 @@
++#! /bin/sh
++
+ adb $* uninstall jogamp.android.launcher
+ adb $* uninstall com.jogamp.common
+--- a/make/scripts/crosstest-java-linux-armv6-rel.sh
++++ b/make/scripts/crosstest-java-linux-armv6-rel.sh
+@@ -1,3 +1,5 @@
++#! /bin/sh
++
+ export HOST_UID=sven
+ export HOST_IP=jogamp02
+ export HOST_RSYNC_ROOT=PROJECTS/JogAmp
+--- a/make/scripts/crosstest-java-linux-armv6hf-rel.sh
++++ b/make/scripts/crosstest-java-linux-armv6hf-rel.sh
+@@ -1,3 +1,5 @@
++#! /bin/sh
++
+ export HOST_UID=sven
+ export HOST_IP=jogamp02
+ export HOST_RSYNC_ROOT=PROJECTS/JogAmp
+--- a/make/scripts/crosstest-junit-linux-armv7-rel.sh
++++ b/make/scripts/crosstest-junit-linux-armv7-rel.sh
+@@ -1,3 +1,5 @@
++#! /bin/sh
++
+ export HOST_UID=sven
+ export HOST_IP=192.168.0.52
+ export HOST_RSYNC_ROOT=PROJECTS/JogAmp

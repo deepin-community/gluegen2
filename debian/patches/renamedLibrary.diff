@@ -1,72 +1,70 @@
-Index: gluegen2/src/junit/com/jogamp/common/util/TestTempJarCache.java
-===================================================================
---- gluegen2.orig/src/junit/com/jogamp/common/util/TestTempJarCache.java
-+++ gluegen2/src/junit/com/jogamp/common/util/TestTempJarCache.java
-@@ -196,8 +196,8 @@ public class TestTempJarCache extends Si
+Description: adding the digit '2' in the name of the build shared library
+Author: Sylvestre Ledru <sylvestre@debian.org>
+Forwarded: not-needed
+Last-Update: 2023-03-14
+
+--- a/src/junit/com/jogamp/common/util/TestTempJarCache.java
++++ b/src/junit/com/jogamp/common/util/TestTempJarCache.java
+@@ -196,8 +196,8 @@
      @Test
      public void testTempJarCache02AddNativeLibs() throws IOException, IllegalArgumentException, URISyntaxException {
          if(AndroidVersion.isAvailable) { System.err.println("n/a on Android"); return; }
 -        final Uri.Encoded nativeJarName = Uri.Encoded.cast("gluegen-rt-natives-"+Platform.getOSAndArch()+".jar");
--        final String libBaseName = "gluegen-rt";
+-        final String libBaseName = "gluegen_rt";
 +        final Uri.Encoded nativeJarName = Uri.Encoded.cast("gluegen2-rt-natives-"+Platform.getOSAndArch()+".jar");
-+        final String libBaseName = "gluegen2-rt";
++        final String libBaseName = "gluegen2_rt";
          final ClassLoader cl = getClass().getClassLoader();
  
          final Uri jarUri = JarUtil.getJarUri(TempJarCache.class.getName(), cl);
-Index: gluegen2/src/java/com/jogamp/common/os/Platform.java
-===================================================================
---- gluegen2.orig/src/java/com/jogamp/common/os/Platform.java
-+++ gluegen2/src/java/com/jogamp/common/os/Platform.java
-@@ -256,7 +256,7 @@ public class Platform extends PlatformPr
-     private static final String useTempJarCachePropName = "jogamp.gluegen.UseTempJarCache";
- 
-     /** fixed basename of JAR file and native library */
--    private static final String libBaseName = "gluegen-rt";
-+    private static final String libBaseName = "gluegen2-rt";
+--- a/src/java/com/jogamp/common/os/Platform.java
++++ b/src/java/com/jogamp/common/os/Platform.java
+@@ -259,7 +259,7 @@
+      * Fixed basename of JAR file and native library.
+      * Dash replaced by underscore to allow static linkage via JEP 178.
+      */
+-    private static final String libBaseName = "gluegen_rt";
++    private static final String libBaseName = "gluegen2_rt";
  
      //
      // static initialization order:
-@@ -317,7 +317,7 @@ public class Platform extends PlatformPr
+@@ -321,7 +321,7 @@
                  DynamicLibraryBundle.GlueJNILibLoader.loadLibrary(libBaseName, false, cl);
  
                  // JVM bug workaround
--                JVMUtil.initSingleton(); // requires gluegen-rt, one-time init.
-+                JVMUtil.initSingleton(); // requires gluegen2-rt, one-time init.
+-                JVMUtil.initSingleton(); // requires gluegen_rt, one-time init.
++                JVMUtil.initSingleton(); // requires gluegen2_rt, one-time init.
  
                  // AWT Headless determination
                  if( !PropertyAccess.getBooleanProperty("java.awt.headless", true) &&
-@@ -350,7 +350,7 @@ public class Platform extends PlatformPr
+@@ -354,7 +354,7 @@
      }
  
      /**
--     * kick off static initialization of <i>platform property information</i> and <i>native gluegen-rt lib loading</i>
-+     * kick off static initialization of <i>platform property information</i> and <i>native gluegen2-rt lib loading</i>
+-     * kick off static initialization of <i>platform property information</i> and <i>native gluegen_rt lib loading</i>
++     * kick off static initialization of <i>platform property information</i> and <i>native gluegen2_rt lib loading</i>
       */
      public static void initSingleton() { }
  
-Index: gluegen2/make/build.xml
-===================================================================
---- gluegen2.orig/make/build.xml
-+++ gluegen2/make/build.xml
-@@ -420,7 +420,7 @@
+--- a/make/build.xml
++++ b/make/build.xml
+@@ -449,7 +449,7 @@
        <property name="c.compiler.src.files.common" value="src/native/common/*.c" />
        <property name="c.compiler.src.files.os" value="src/native/${c.src.dir.os}/*.c" />
  
--      <property name="output.lib.name" value="gluegen-rt" />
-+      <property name="output.lib.name" value="gluegen2-rt" />
-       <condition property="output.lib.name.os" value="lib${output.lib.name}.so"><isset property="isUnix"/></condition>
-       <condition property="output.lib.name.os" value="${output.lib.name}.dll"><isset property="isWindows"/></condition>
-       <condition property="output.lib.name.os" value="lib${output.lib.name}.jnilib"><isset property="isOSX"/></condition>
-@@ -497,13 +497,13 @@
-       <antcall target="c.manifest" inheritRefs="true" />
+-      <property name="output.lib.name" value="gluegen_rt" /> <!-- dash replaced by underscore to allow static linkage via JEP 178 -->
++      <property name="output.lib.name" value="gluegen2_rt" /> <!-- dash replaced by underscore to allow static linkage via JEP 178 -->
+       <property name="output.lib.name.os" value="${native.library.prefix}${output.lib.name}.${native.library.suffix}" />
+ 
+       <uptodate property="gluegen.build.skip.native">
+@@ -552,13 +552,13 @@
+       </copy>
  
        <native.tag.jar objdir="${build}/obj"
 -                      nativejarfile="${build}/gluegen-rt-natives-${os.and.arch}.jar"
 +                      nativejarfile="${build}/gluegen2-rt-natives-${os.and.arch}.jar"
                        manifestfile="${build}/Manifest-rt-natives.temp" 
                        module="common"
--                      includelibs="*gluegen-rt.${native.library.suffix}" />
-+                      includelibs="*gluegen2-rt.${native.library.suffix}" />
+                       includelibs="*${output.lib.name}.${native.library.suffix}" />
  
        <!-- Produce duplicates for different configurations, since non-native-jar aliasing (Bug 1023/Bug 1024) -->
 -      <copy file="${build}/gluegen-rt-natives-${os.and.arch}.jar" tofile="${build}/gluegen-rt-android-natives-${os.and.arch}.jar"/>

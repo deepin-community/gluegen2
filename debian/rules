@@ -2,11 +2,29 @@
 
 include /usr/share/dpkg/pkg-info.mk
 
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+
 ifeq ($(DEB_HOST_ARCH),armhf)
 EXTRA_ANT_ARGS = -DisAbiEabiGnuArmhf=true
 endif
 
 export CLASSPATH=/usr/share/java/jsr305.jar:/usr/share/java/ant-contrib-cpptasks.jar
+
+# Providing the hardening CPPFLAGS to the ant cc task.
+ARGS_FOR_COMPILER=$(shell COMPILERARGS=""; \
+    for arg in $(CFLAGS) $(CPPFLAGS); do\
+        COMPILERARGS="$${COMPILERARGS}<compilerarg value=\\\"$$arg\\\" \/> " ;\
+    done; \
+    echo "$${COMPILERARGS}")
+
+# Providing the hardening LDFLAGS to the ant cc task.
+ARGS_FOR_LINKER=$(shell LINKERARGS=""; \
+    for arg in $(LDFLAGS); do\
+        LINKERARGS="$${LINKERARGS}<linkerarg value=\\\"$$arg\\\" \/> " ;\
+    done; \
+    echo "$${LINKERARGS}")
 
 %:
 	dh $@ --buildsystem=ant --with maven-repo-helper
@@ -14,12 +32,18 @@ export CLASSPATH=/usr/share/java/jsr305.jar:/usr/share/java/ant-contrib-cpptasks
 override_dh_auto_configure:
 	-mv src/junit/com/jogamp/junit/util/VersionSemanticsUtil.java  src/junit/com/jogamp/junit/util/VersionSemanticsUtil.java.disabled
 	-mv src/junit/com/jogamp/common/util/TestVersionSemantics.java src/junit/com/jogamp/common/util/TestVersionSemantics.java.disabled
+	# Providing the hardening flags to the ant cc task.
+	mv make/build.xml make/build.xml.old
+	sed -e 's|#COMPILER_ARGS#|$(ARGS_FOR_COMPILER)|'\
+	    -e 's|#LINKER_ARGS#|$(ARGS_FOR_LINKER)|' make/build.xml.old > make/build.xml
 
 override_dh_auto_build:
-	dh_auto_build -- -f make/build.xml all javadoc $(EXTRA_ANT_ARGS)
+	dh_auto_build -- -f make/build.xml all $(EXTRA_ANT_ARGS)
 
 override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	ANT_PATH=/usr/share/ant make/scripts/runtest.sh build
+endif
 
 override_dh_install-indep:
 	dh_install -i
@@ -33,9 +57,19 @@ override_dh_install-indep:
 
 	rm debian/libgluegen2-build-java/usr/share/gluegen2/src/java/com/jogamp/gluegen/cgram/license.txt
 
+	# Moving build.xml.old to build.xml in libgluegen2-build-java to avoid
+	# embedding build path
+	mv debian/libgluegen2-build-java/usr/share/gluegen2/make/build.xml.old debian/libgluegen2-build-java/usr/share/gluegen2/make/build.xml
+
 override_dh_auto_clean:
 	-mv src/junit/com/jogamp/junit/util/VersionSemanticsUtil.java.disabled  src/junit/com/jogamp/junit/util/VersionSemanticsUtil.java
 	-mv src/junit/com/jogamp/common/util/TestVersionSemantics.java.disabled src/junit/com/jogamp/common/util/TestVersionSemantics.java
 
+override_dh_clean:
+	dh_clean
+	# Restoring make/build.xml
+	if [ -e make/build.xml.old ]; then mv make/build.xml.old make/build.xml; fi
+
 get-orig-pom:
-	wget https://repo1.maven.org/maven2/org/jogamp/gluegen/gluegen-rt/$(DEB_VERSION_UPSTREAM)/gluegen-rt-$(DEB_VERSION_UPSTREAM).pom -O debian/pom-gluegen-rt.xml
+	VERSION_FOR_POM=$(shell echo $(DEB_VERSION_UPSTREAM) | sed 's/\+dfsg\d*//'); \
+	wget https://repo1.maven.org/maven2/org/jogamp/gluegen/gluegen-rt/$$VERSION_FOR_POM/gluegen-rt-$$VERSION_FOR_POM.pom -O debian/pom-gluegen-rt.xml

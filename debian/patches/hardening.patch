@@ -1,0 +1,26 @@
+Description: nsuring proper hardening by spreading LDFLAGS
+Author: Pierre Gruet <pgt@debian.org>
+Forwarded: not-needed
+Last-Update: 2023-03-19
+
+--- a/make/build.xml
++++ b/make/build.xml
+@@ -525,6 +525,7 @@
+         </fileset>
+ 
+         <compiler extends="${compiler.cfg.id}" >
++          #COMPILER_ARGS#
+           <sysincludepath path="${java.includes.dir}"/>
+           <sysincludepath path="${java.includes.dir.platform}"/>
+           <sysincludepath path="${stub.includes.dir}/platform"/>
+@@ -536,7 +537,9 @@
+           <includepath path="${src.generated.c}/Windows" if="isWindows"/>
+         </compiler>
+ 
+-        <linker extends="${linker.cfg.id}" />
++        <linker extends="${linker.cfg.id}">
++            #LINKER_ARGS#
++        </linker>
+ 
+       </cc>
+ 

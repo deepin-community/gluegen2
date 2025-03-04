@@ -1,0 +1,19 @@
+Description: putting the path of the build .so in the java.library.path for
+ the tests, so that it can be loaded as native code.
+Author: Pierre Gruet <pgt@debian.org>
+Forwarded: sgothel@jausoft.com
+Last-Update: 2023-03-15
+
+--- a/make/scripts/runtest.sh
++++ b/make/scripts/runtest.sh
+@@ -91,8 +91,8 @@
+     echo DYLD_LIBRARY_PATH $DYLD_LIBRARY_PATH
+     echo USE_CLASSPATH $USE_CLASSPATH
+     which java
+-    echo java $MODULE_ARGS $X_ARGS -Djava.library.path=$libspath -cp "$USE_CLASSPATH" $D_ARGS $*
+-    java $MODULE_ARGS $X_ARGS -Djava.library.path="$libspath" -cp "$USE_CLASSPATH" $D_ARGS $*
++    echo java $MODULE_ARGS $X_ARGS -Djava.library.path=$libspath:$builddir/obj -cp "$USE_CLASSPATH" $D_ARGS $*
++    java $MODULE_ARGS $X_ARGS -Djava.library.path="$libspath:$builddir/obj" -cp "$USE_CLASSPATH" $D_ARGS $*
+     #echo java -cp "$USE_CLASSPATH" $X_ARGS $D_ARGS $*
+     #java -cp "$USE_CLASSPATH" $X_ARGS $D_ARGS $*
+     #j3 -cp "$USE_CLASSPATH" $X_ARGS $D_ARGS $*

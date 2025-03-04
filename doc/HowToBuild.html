@@ -2,8 +2,10 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <link href="../../style.css" rel="stylesheet" type="text/css"/>
-        <title>How to build JOGL</title>
+        <link href="../../style-alt1.css" rel="alternate stylesheet" title="default sans-serif font" type="text/css"/>
+        <title>How to build GlueGen</title>
     </head>
     <body>
         <div id="container">
@@ -34,137 +36,179 @@
                     if not stated otherwise.<br/>
 
                     <ul>
-                        <li> <b>Java</b><br/>
-                            A Java 1.6 compliant SDK.
+                        <li> <b>Java</b>
+                           <ul>
+                              <li>Build &amp; Runtime: An <a href="http://openjdk.java.net/">OpenJDK</a> 17 compliant SDK.</li>
+                              <li>Runtime: An OpenJDK 8 compliant JRE.</li>
+                           </ul>
+                           You may find an appropriate <a href="http://openjdk.java.net/">OpenJDK</a> build @ <a href="https://adoptium.net/temurin/releases/">Adoptium</a>.<br/>
+                           <br/>
+                           Or you may try one of the following SDK's and/or Runtimes:
+                           <ul>
+                              <li> <a href="https://www.azul.com/downloads/zulu-community/">Azul's Zulu</a> (active, +embedded)</li>
+                              <li> <a href="https://github.com/ReadyTalk/avian">Avian</a> (inactive, not tested)</li>
+                           </ul>
                         </li>
-                        <li> <b><a href="http://ant.apache.org/">Ant</a></b> 1.9.0 or later</li>
-                        <li> <b><a href="http://www.kernel.org/pub/software/scm/git/docs/">Git</a></b> 1.6.0 or later<br/>
+                        <li> <b><a href="http://ant.apache.org/">Ant</a></b> 1.10.5 or later</li>
+                        <li> <b><a href="http://www.kernel.org/pub/software/scm/git/docs/">Git</a></b> 2.0.4 or later<br/>
                             <ul>
                                 <li> Use your Unix distribution's version, if available, or</li>
-                                <li> <a href="http://www.kernel.org/pub/software/scm/git/">Source Code for GNU/Linux, MacOSX, ..</a>, or</li>
-                                <li> Git on Windows
-                                    <ul>
-                                        <li> <a href="https://cygwin.com">cygwin</a></li>
-                                        <li> <a href="http://code.google.com/p/msysgit/">msysgit</a></li>
-                                    </ul>
-                                </li>
-                                <li> <a href="http://code.google.com/p/git-osx-installer/">git-osx-installer</a> </li>
+                                <li> <a href="http://www.kernel.org/pub/software/scm/git/">Source Code for GNU/Linux, MacOS, ..</a>, or</li>
+                                <li> Git on Windows is provided by <a href="https://cygwin.com">cygwin</a></li>
+                                <li> Git &ge; 2.37 provided by Xcode &ge; 14</li>
                             </ul>
                         </li>
 
-                        <li> <b>GNU Linux</b> x86, 32- and 64-bit<br/>
-                            You may have to install a few developer packages ...
+                        <li> <b><a href="https://www.freebsd.org/">FreeBSD</a></b> x86, 32- and 64-bit, ...
                             <ul>
-                                <li> <b>Debian</b> 5.00 or later
+                                <li> <b><a href="https://www.freebsd.org/releases/">FreeBSD</a></b> 12 or later <i>(todo: test)</i>
                                     <ul>
-                                        <li>openjdk-7-jre</li>
-                                        <li>openjdk-7-jdk</li>
+                                        <li>openjdk17</li>
                                         <li>ant</li>
                                         <li>git</li>
+                                        <li>awk</li>
+                                        <li>p7zip-full ???</li>
+                                        <li>gcc</li>
+                                        <li>cmake</li>
+                                    </ul>
+                            </ul>
+                        </li>
+                        <li> <b>GNU Linux</b> x86_64 as well as Arm64, etc<br/>
+                            You may have to install a few developer packages ...
+                            <ul>
+                                <li> <b>Debian</b> 11 or later
+                                    <ul>
+                                        <li>openjdk-17-jre</li>
+                                        <li>openjdk-17-jdk</li>
+                                        <li>ant</li>
+                                        <li>git</li>
+                                        <li>gawk</li>
                                         <li>p7zip-full</li>
                                         <li>gcc</li>
+                                        <li>cmake</li>
                                     </ul>
                                     One liner install command:
-                                    <pre>
-apt-get install openjdk-7-jre openjdk-7-jdk ant git-all p7zip-full gcc
-                                    </pre>
+                                    <ul>
+                                      <li><b>Debian</b> 11 Bullseye
+                                      <pre>
+apt-get install openjdk-17-jre openjdk-17-jdk ant git-all gawk p7zip-full gcc cmake
+                                      </pre></li>
+                                    </ul>
                                     Optional: Add <i>kernel</i> build utilities:
                                     <pre>
 apt-get install kernel-package build-essential 
                                     </pre>
-                                    Optional: Add <i>multiarch</i> i386 next to amd64 
-                                    <ul>
-                                      <li><b>Debian</b> 7.00
-                                        <pre>
-dpkg --add-architecture i386
-apt-get update
-apt-get install ia32-libs ia32-libs-gtk gcc-multilib lib32gcc1 lib32gomp1 lib32itm1 lib32quadmath0 libc6-i386 ibc6-dev-i386 g++-multilib lib32stdc++6 openjdk-7-jre:i386 openjdk-7-jdk:i386
-                                        </pre></li>
-
-                                      <li><b>Debian</b> 8.00
-                                        <pre>
-dpkg --add-architecture i386
-apt-get update
-apt-get install lib32z1 lib32ncurses5 lib32bz2-1.0 gcc-multilib lib32gcc1 lib32gomp1 lib32itm1 lib32quadmath0 libc6-i386 libc6-dev-i386 g++-multilib lib32stdc++6 openjdk-7-jre:i386 openjdk-7-jdk:i386
-                                        </pre></li>
-                                    </ul>
                                 </li>
-                                <li> <b>OpenSuSE</b> 10.2 or later
+                                <li> <b>OpenSuSE</b> 15.0 or later
                                     <ul>
-                                        <li>openjdk-7-jre</li>
-                                        <li>openjdk-7-jdk</li>
+                                        <li>java-17-openjdk</li>
                                         <li>ant</li>
                                         <li>git</li>
+                                        <li>gawk</li>
                                         <li>p7zip-full</li>
                                         <li>gcc</li>
+                                        <li>cmake</li>
                                     </ul>
                                 </li>
-                                <li> <b>CentOS / Red Hat Enterprise Linux</b> 5.4 or later<br/>
+                                <li> <b>CentOS 7 / Red Hat Enterprise Linux 7.6</b> or later<br/>
                                     <ul>
-                                        <li>openjdk-7-jre</li>
-                                        <li>openjdk-7-jdk</li>
+                                        <li>java-17-openjdk</li>
                                         <li>ant</li>
                                         <li>git</li>
+                                        <li>gawk</li>
                                         <li>p7zip-full</li>
                                         <li>gcc</li>
+                                        <li>cmake</li>
                                     </ul>
                                 </li>
                             </ul>
                         </li>
-                        <li> <b>OpenSolaris</b> SPARC and x86, 32- and 64-bit
+                        <li> <b>Android/Linux</b> Version 7.0 Nougat API Level 24 or later<br/>
                             <ul>
-                                <li> <a href="http://opensolaris.org/">OpenSolaris 2009.06 or later</a></li>
+                                <li>any of the above GNU/Linux x86_64 hosts for crosscompilation</li>
+                                <li>android ndk <i>(todo: detail instructions)</i></li>
+                                <li>android sdk <i>(todo: detail instructions)</i></li>
                             </ul>
                         </li>
-                        <li> <b>MacOSX</b> Intel
+                        <li> <b><a href="https://en.wikipedia.org/wiki/OpenSolaris#Derivatives">OpenSolaris Derivatives</a></b> SPARC and x86, 32- and 64-bit
                             <ul>
-                                <li> git, see above </li>
-                                <li> <a href="http://www.apple.com/macosx/">Mac OS X</a> 10.3 (note: will not work with earlier releases) </li>
-                                <li> <a href="http://developer.apple.com/technologies/xcode.html">Xcode</a> for gcc, etc (included in OSX)</li>
+                                <li><a href="https://www.openindiana.org/">OpenIndiana</a> using illumus's OpenSolaris continuation <i>(todo: test)</i></li>
                             </ul>
                         </li>
-                        <li> <b>Windows</b>/x86 (32 bit)
+                        <li> <b>MacOS and iOS</b> x86_64 and aarch64
                             <ul>
-                                <li>Windows XP or later </li>
-                                <li>git, see above</li>
-                                <li> <a href="http://mingw-w64.sourceforge.net/">MinGW64</a>
-                                  <ul>
-                                    <li> <a href="http://sourceforge.net/projects/mingwbuilds/files/mingw-builds-install/mingw-builds-install.exe/download">Installer</a>
-                                      <ul>
-                                        <li>mingw-build-install</li>
-                                        <li>version: 4.8.1</li>
-                                        <li>host: x32</li>
-                                        <li>threading: win32</li>
-                                        <li>exceptions: SJLJ</li>
-                                        <li>revision: 5</li>
-                                      </ul></li>
-                                    <li> or <a href="http://sourceforge.net/projects/mingwbuilds/files/host-windows/releases/">manual</a> 
-                                         via  <a href="http://sourceforge.net/projects/mingwbuilds/files/host-windows/releases/4.8.1/32-bit/threads-win32/sjlj/">7z archive file</a></li>
-                                  </ul></li>
+                                <li>Build machine: <a href="http://www.apple.com/macosx/">Mac OS</a> 12.6.5 (Monterey)
+                                <ul>
+                                    <li>Lowest test machine: <a href="http://www.apple.com/macosx/">Mac OS</a> 10.13.6 (High Sierra)</li>
+                                    <li>Minimum deployment target: <a href="http://www.apple.com/macosx/">Mac OS</a> 10.7 (Lion)</li>
+                                </ul></li>
+                                <li><a href="http://developer.apple.com/technologies/xcode.html">Xcode</a> 14.2 for clang, etc (included in MacOS)</li>
+                                <li>MacOS SDK 11.3 from a previous XCode version or <a href="https://github.com/phracker/MacOSX-SDKs">from this alternative site</a>
+                                <ul>
+                                    <li><i>export SDKROOT=macosx11.3</i></li>
+                                    <li>We use <i>-mmacosx-version-min=10.7</i> (Lion 10.7) minimum deployment target.</li>
+                                </ul></li>
+                                <li>git &ge; 2.37 provided by Xcode &ge; 14</li>
+                                <li>awk is provided by MacOS</li>
+                                <li><a href="https://cmake.org/">CMake 3.25.1</a>, and install the <a href="https://stackoverflow.com/questions/30668601/installing-cmake-command-line-tools-on-a-mac">command line tools</a>
+                                <ul>
+                                    <li>Install symlinks to <i>/usr/local/bin</i>, run: <i>sudo "/Applications/CMake.app/Contents/bin/cmake-gui" --install</i></li>
+                                </ul></li>
+                                <li><a href="https://7-zip.org/">7-Zip 21.07</a> x86_64 and arm64 version</li>
+                                <li>See also <a href="JogAmpMacOSVersions.md">MacOS Versions Related to JogAmp</a></li>
                             </ul>
+                            Prepare fat universal OpenJDK libraries
+                            <ul>
+                                <li>Open a terminal in your home folder, e.g. <i>/Users/jogamp</i></li>
+                                <li>The OpenJDK library folder of each target platform, x86_64 or aarch64, is <i>/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home/lib</i></li>
+                                <li>Transfer the x86_64 OpenJDK library folder to <i>temurin-17.jdk.amd64.lib</i><li>
+                                <li>Transfer the aarch64 OpenJDK library folder to <i> temurin-17.jdk.arm64.lib</i></li>
+                                <li>Run the script <i>gluegen/make/scripts/make.macosx.jdk_lipo_libs.sh</i></li>
+                                <li>Fat universal OpenJDK libraries are produced into <i>temurin-17.jdk.fat.lib</i></li>
+                            </ul>
+                            Now we have to tell the <i>gluegen</i> build framework to use <i>temurin-17.jdk.fat.lib</i>,
+                            by adding an <i>ant</i> macro in <i>$HOME/gluegen.properties</i>
+                            <pre>
+                                java.lib.dir.platform=/Users/jogamp/temurin-17.jdk.fat.lib
+                            </pre>
+                            Replace <i>jogamp</i> with your user name.
                         </li>
                         <li> <b>Windows</b>/x86_64 (64-bit)
                             <ul>
-                                <li>Windows XP or later </li>
-                                <li>git, see above</li>
-                                <li> <a href="http://mingw-w64.sourceforge.net/">MinGW64</a>
+                                <li>Windows 7 or later </li>
+                                <li>git is provided by <a href="https://cygwin.com">cygwin</a></li>
+                                <li>gawk is provided by <a href="https://cygwin.com">cygwin</a></li>
+                                <li> <a href="http://mingw-w64.org/">MinGW64</a> (<a href="https://github.com/niXman/mingw-builds-binaries/releases">files on github</a>)
                                   <ul>
-                                    <li> <a href="http://sourceforge.net/projects/mingwbuilds/files/mingw-builds-install/mingw-builds-install.exe/download">Installer</a>
+                                    <li> <a href="https://github.com/niXman/mingw-builds-binaries/releases/download/12.2.0-rt_v10-rev2/x86_64-12.2.0-release-posix-seh-msvcrt-rt_v10-rev2.7z">x86_64-12.2.0-release-posix-seh-msvcrt-rt_v10-rev2.7z</a>
                                       <ul>
-                                        <li>mingw-build-install</li>
-                                        <li>version: 4.8.1</li>
+                                        <li>version: 12.2.0</li>
+                                        <li>host: x64</li>
+                                        <li>threading: posix</li>
+                                        <li>exceptions: seh</li>
+                                        <li>c-runtime: msvcrt</li>
+                                        <li>revision: 2</li>
+                                      </ul></li>
+                                    <li> <s><a href="https://github.com/niXman/mingw-builds-binaries/releases/download/12.2.0-rt_v10-rev2/x86_64-12.2.0-release-win32-seh-msvcrt-rt_v10-rev2.7z">x86_64-12.2.0-release-win32-seh-msvcrt-rt_v10-rev2.7z</a>
+                                      <ul>
+                                        <li>version: 12.2.0</li>
                                         <li>host: x64</li>
                                         <li>threading: win32</li>
-                                        <li>exceptions: SJLJ</li>
-                                        <li>revision: 5</li>
-                                      </ul></li>
-                                    <li> or <a href="http://sourceforge.net/projects/mingwbuilds/files/host-windows/releases/">manual</a> 
-                                         via  <a href="http://sourceforge.net/projects/mingwbuilds/files/host-windows/releases/4.8.1/64-bit/threads-win32/sjlj/">7z archive file</a></li>
-                                  </ul></li>
+                                        <li>exceptions: seh</li>
+                                        <li>c-runtime: msvcrt</li>
+                                        <li>revision: 2</li>
+                                      </ul></s></li>
+                                  </ul>
+                                </li>
+                                <li><a href="https://cmake.org/">CMake 3.25.1</a> 64bit version</li>
+                                <li><a href="https://www.7-zip.org/">7-Zip 22.01</a> 64bit version</li>
                             </ul>
                         </li>
                     </ul>
 
+                    <p>
+                        CMake has been added here for JOAL and JOGL.
+                    </p>
                     <p>
                         Additional platforms such as FreeBSD and HP/UX are handled by the
                         build system, but are not officially supported.
@@ -173,7 +217,7 @@ apt-get install lib32z1 lib32ncurses5 lib32bz2-1.0 gcc-multilib lib32gcc1 lib32g
                     <h2>Build Steps</h2>
                     <hr/>
                     <p>
-                        Here are the steps that are required in order to build JOGL.
+                        Here are the steps that are required in order to build GlueGen.
                     </p>
 
                     <ol>
@@ -197,7 +241,7 @@ apt-get install lib32z1 lib32ncurses5 lib32bz2-1.0 gcc-multilib lib32gcc1 lib32g
                         </li>
 
                         <li> <b>Unset your CLASSPATH environment variable:</b> <br/>
-                            The Ant build requires that the JOGL jars not be visible on the classpath. On Unix, type
+                            The Ant build requires that the GlueGen jars not be visible on the classpath. On Unix, type
                             <code> unsetenv CLASSPATH </code> into a csh or tcsh shell, or <code> unset CLASSPATH </code>
                             into a Bourne shell. On Windows, type <code> set CLASSPATH= </code> into a command prompt.
                         </li>
@@ -207,13 +251,32 @@ apt-get install lib32z1 lib32ncurses5 lib32bz2-1.0 gcc-multilib lib32gcc1 lib32g
                             copy <b>gluegen/make/gluegen.properties</b> into your home directory (pointed to by the Java system property <b>user.home</b>). <br/></li>
 
                         <li> <b>Build the source tree:</b> <br/>
-                            Open a command shell in the "gluegen/make" directory of the source tree and type <code>"ant"</code>.
+                            Open a command shell in the "gluegen/make" directory of the source tree and invoke <code>ant</code> 
+                            with the given properties as follows
+                            <pre>
+    cd /home/dude/projects/jogamp/gluegen/make/
+    ant -Dtarget.sourcelevel=1.8 -Dtarget.targetlevel=1.8 -Dtarget.rt.jar=/your/openjdk8/lib/rt.jar
+                            </pre>
+                            Alternatively you can also use environment variables instead of properties
+                            <pre>
+    export SOURCE_LEVEL=1.8
+    export TARGET_LEVEL=1.8
+    export TARGET_RT_JAR=/your/openjdk8/lib/rt.jar
+    ant
+                            </pre>
+                            Optionally you can also set certain build features via properites or environment variables
+                            <pre>
+    Feature                Property                          or Environment Variable
+    developer-zip-archive: build.archiveon=true                 BUILD_ARCHIVE=true
+    Native Debug Code:     c.compiler.debug=true
+    Java Debug Code:       javacdebuglevel="source,lines,vars"
+                            </pre>
                         </li>
 
-                        <li> <b>Test your build:</b> <br/> Stay in your command shell in the "gluegen/make" directory of the source tree and type <code>"ant junit.run"</code>.</li>
+                        <li> <b>Test your build:</b> <br/> Stay in your command shell in the "gluegen/make" directory of the source tree and invoke <code>ant</code> with above properties or environment variables and use the target <code>junit.run</code>.</li>
 
-                        <li> <b>Build Javadoc:</b> <br/> Stay in your command shell in the "gluegen/make" directory of the source tree and type "<code>ant javadoc"</code>.
-                            This will produce the end-user documentation for JOGL along with some auxiliary utility packages.
+                        <li> <b>Build Javadoc:</b> <br/> Stay in your command shell in the "gluegen/make" directory of the source tree and invoke <code>ant</code> with above properties or environment variables and use the target <code>javadoc</code>.
+                            This will produce the end-user documentation for GlueGen along with some auxiliary utility packages.
                         </li>
                     </ol>
 
@@ -237,7 +300,7 @@ apt-get install lib32z1 lib32ncurses5 lib32bz2-1.0 gcc-multilib lib32gcc1 lib32g
                         </li>
 
                         <li>
-                            <b>CharScanner; panic: ClassNotFoundException: com.sun.gluegen.cgram.CToken</b>
+                            <b>CharScanner; panic: ClassNotFoundException: com.jogamp.gluegen.cgram.CToken</b>
 
                             This occurs because ANTLR was dropped into the Extensions
                             directory of the JRE/JDK. On Windows and Linux, delete any ANTLR jars from jre/lib/ext,

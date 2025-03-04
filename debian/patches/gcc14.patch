@@ -1,0 +1,19 @@
+Description: fixing build error with gcc14, see Bug-Debian field below
+Author: Pierre Gruet <pgt@debian.org>
+Bug-Debian: https://bugs.debian.org/1075013
+Forwarded: sgothel@jausoft.com
+Last-Update: 2024-07-09
+
+--- a/src/native/common/Buffers.c
++++ b/src/native/common/Buffers.c
+@@ -25,6 +25,9 @@
+ 
+ JNIEXPORT jlong JNICALL 
+ Java_com_jogamp_common_nio_Buffers_memcpyImpl(JNIEnv *env, jclass _unused, jlong jdest, jlong jsrc, jlong jlen) {
+-    return ( 0 != jdest && 0 != jsrc && 0 < jlen ) ? memcpy((void *)(intptr_t)jdest, (void *)(intptr_t)jsrc, (size_t)jlen) : jdest;
++    if ( 0 != jdest && 0 != jsrc && 0 < jlen ) {
++        memcpy((void *)(intptr_t)jdest, (void *)(intptr_t)jsrc, (size_t)jlen);
++    }
++    return jdest;
+ }
+ 

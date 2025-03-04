@@ -1,10 +1,11 @@
 Description: disable static linking for native libraries.
 Author: Gilles Filippini <pini@debian.org>
-Index: gluegen2/make/gluegen-cpptasks-base.xml
-===================================================================
---- gluegen2.orig/make/gluegen-cpptasks-base.xml
-+++ gluegen2/make/gluegen-cpptasks-base.xml
-@@ -1262,20 +1262,14 @@
+Forwarded: not-needed
+Last-Update: 2023-03-15
+
+--- a/make/gluegen-cpptasks-base.xml
++++ b/make/gluegen-cpptasks-base.xml
+@@ -1368,20 +1368,14 @@
      <!-- Unix linker configuration -->
  
      <linker id="linker.cfg.linux" name="${gcc.compat.compiler}">
@@ -25,7 +26,7 @@ Index: gluegen2/make/gluegen-cpptasks-base.xml
      </linker>
  
      <!-- Using default compiler settings - utilize:
-@@ -1286,16 +1280,12 @@
+@@ -1392,8 +1386,6 @@
        <linkerarg value="-fpic" /> 
        <linkerarg value="-nostdlib" />
        <linkerarg value="-Bdynamic" />
@@ -33,7 +34,8 @@ Index: gluegen2/make/gluegen-cpptasks-base.xml
 -      <linkerarg value="-static-libstdc++" if="isGCC"/>
      </linker>
  
-     <linker id="linker.cfg.linux.aarch64" name="${gcc.compat.compiler}">
+     <!-- Using default compiler settings - utilize:
+@@ -1404,8 +1396,6 @@
        <linkerarg value="-fpic" /> 
        <linkerarg value="-nostdlib" />
        <linkerarg value="-Bdynamic" />

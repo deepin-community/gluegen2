@@ -129,6 +129,7 @@ public class ConstantDefinition extends AliasedSymbolImpl implements AliasedSema
                return String.valueOf(f) + ( !isDouble ? "f" : "");
             }
         }
+        @Override
         public final String toString() {
             final StringBuilder sb = new StringBuilder();
             sb.append("[");
@@ -506,8 +507,9 @@ public class ConstantDefinition extends AliasedSymbolImpl implements AliasedSema
             }
             // Find constant expressions like (1 << 3)
             // if found just pass them through, they will most likely work in java too
-            // expressions containing identifiers are currently ignored (casts too)
-            final String[] values = value.split("[\\s\\(\\)]"); // [ whitespace '(' ')' ]
+            // expressions containing identifiers are currently ignored (casts too).
+            // The pattern includes 'patternCPPOperand', i.e. all supported operands used for constant-expression of define macros
+            final String[] values = value.split("[\\s\\+\\-\\*\\/\\|\\&\\(\\)]|(\\<\\<)|(\\>\\>)|(\\~)"); // [ whitespace '(' ')' ]
             int numberCount = 0;
             for (final String s : values) {
                 if( s.length() > 0 ) {
@@ -760,7 +762,7 @@ public class ConstantDefinition extends AliasedSymbolImpl implements AliasedSema
     public final static Pattern patternIntegerNumber;
 
     /**
-     * One of: {@code +} {@code -} {@code *} {@code /} {@code |} {@code &} {@code (} {@code )} {@code <<} {@code >>}
+     * One of: {@code +} {@code -} {@code *} {@code /} {@code |} {@code &} {@code (} {@code )} {@code <<} {@code >>} {@code ~}
      * <p>
      * Expression excludes {@link #patternDecimalOrIntNumber}.
      * </p>
@@ -949,6 +951,6 @@ public class ConstantDefinition extends AliasedSymbolImpl implements AliasedSema
              ")" +
              WhiteSpace // Optional trailing "whitespace"
              ;
-        patternCPPOperand = Pattern.compile("(?!"+fpOrIntRegex2+")[\\+\\-\\*\\/\\|\\&\\(\\)]|(\\<\\<)|(\\>\\>)");
+        patternCPPOperand = Pattern.compile("(?!"+fpOrIntRegex2+")[\\+\\-\\*\\/\\|\\&\\(\\)]|(\\<\\<)|(\\>\\>)|(\\~)");
     }
 }

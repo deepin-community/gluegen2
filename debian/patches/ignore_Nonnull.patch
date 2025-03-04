@@ -1,0 +1,26 @@
+Description: ignoring @Nonnull annotation, which is in no Debian package
+Author: Pierre Gruet <pgt@debian.org>
+Forwarded: not-needed
+Last-Update: 2023-09-10
+
+--- a/jcpp/src/test/java/com/jogamp/gluegen/jcpp/CppReaderTest.java
++++ b/jcpp/src/test/java/com/jogamp/gluegen/jcpp/CppReaderTest.java
+@@ -5,7 +5,7 @@
+ import java.io.StringReader;
+ import java.util.Collections;
+ 
+-import javax.annotation.Nonnull;
++//import javax.annotation.Nonnull;
+ 
+ import org.junit.FixMethodOrder;
+ import org.junit.Test;
+@@ -19,7 +19,8 @@
+ @FixMethodOrder(MethodSorters.NAME_ASCENDING)
+ public class CppReaderTest extends SingletonJunitCase {
+ 
+-    public static String testCppReader(@Nonnull final String in, final Feature... f) throws Exception {
++    //public static String testCppReader(@Nonnull final String in, final Feature... f) throws Exception {
++    public static String testCppReader(final String in, final Feature... f) throws Exception {
+         final String inclpath = BuildEnvironment.gluegenRoot + "/jcpp/src/test/resources" ;
+ 
+         System.out.println("Testing " + in);

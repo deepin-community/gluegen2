@@ -413,33 +413,30 @@ public class JarUtil {
     }
 
     /**
-     * See {@link #getRelativeOf(Class, com.jogamp.common.net.Uri.Encoded, com.jogamp.common.net.Uri.Encoded)}.
-     * @param classFromJavaJar URI encoded!
-     * @param cutOffInclSubDir URI encoded!
-     * @param relResPath URI encoded!
-     * @return
-     * @throws IllegalArgumentException
-     * @throws IOException
-     * @throws URISyntaxException
-     * @deprecated Use {@link #getRelativeOf(Class, com.jogamp.common.net.Uri.Encoded, com.jogamp.common.net.Uri.Encoded)}.
-     */
-    public static java.net.URI getRelativeOf(final Class<?> classFromJavaJar, final String cutOffInclSubDir, final String relResPath) throws IllegalArgumentException, IOException, URISyntaxException {
-        return getRelativeOf(classFromJavaJar, Uri.Encoded.cast(cutOffInclSubDir), Uri.Encoded.cast(relResPath)).toURI();
-    }
-    /**
      * Locates the {@link JarUtil#getJarFileUri(Uri) Jar file Uri} of a given resource
      * relative to a given class's Jar's Uri.
      * <pre>
      *   class's jar url path + cutOffInclSubDir + relResPath,
      * </pre>
+     * or with <code>cutOffInclSubDir</code> being <code>null</code> just
+     * <pre>
+     *   class's jar url path + relResPath,
+     * </pre>
      * Example #1
+     * <pre>
+     *   classFromJavaJar = com.lighting.Test (in: file:/storage/TestLighting.jar)
+     *   cutOffInclSubDir = null
+     *   relResPath       = LightAssets.jar
+     *   Result           : file:/storage/LightAssets.jar
+     * </pre>
+     * Example #2
      * <pre>
      *   classFromJavaJar = com.lighting.Test (in: file:/storage/TestLighting.jar)
      *   cutOffInclSubDir = lights/
      *   relResPath       = LightAssets.jar
      *   Result           : file:/storage/lights/LightAssets.jar
      * </pre>
-     * Example #2
+     * Example #3
      * <pre>
      *   classFromJavaJar = com.lighting.Test (in: file:/storage/lights/TestLighting.jar)
      *   cutOffInclSubDir = lights/
@@ -450,8 +447,9 @@ public class JarUtil {
      * TODO: Enhance documentation!
      *
      * @param classFromJavaJar Used to get the root Uri for the class's Jar Uri.
-     * @param cutOffInclSubDir The <i>cut off</i> included sub-directory prepending the relative resource path.
+     * @param cutOffInclSubDir Optional <i>cut off</i> included sub-directory prepending the relative resource path.
      *                         If the root Uri includes cutOffInclSubDir, it is no more added to the result.
+     *                         Parameter will be ignored if <code>null</code>.
      * @param relResPath The relative resource path. (Uri encoded)
      * @return The resulting resource Uri, which is not tested.
      * @throws IllegalArgumentException
@@ -465,7 +463,6 @@ public class JarUtil {
             System.err.println("JarUtil.getRelativeOf: "+"(classFromJavaJar "+classFromJavaJar+", classJarUri "+classJarUri+
                     ", cutOffInclSubDir "+cutOffInclSubDir+", relResPath "+relResPath+"): ");
         }
-
         final Uri jarSubUri = classJarUri.getContainedUri();
         if(null == jarSubUri) {
             throw new IllegalArgumentException("JarSubUri is null of: "+classJarUri);
@@ -474,9 +471,8 @@ public class JarUtil {
         if( DEBUG ) {
             System.err.println("JarUtil.getRelativeOf: "+"uri "+jarSubUri.toString()+" -> "+jarUriRoot);
         }
-
         final Uri.Encoded resUri;
-        if( jarUriRoot.endsWith(cutOffInclSubDir.get()) ) {
+        if( null == cutOffInclSubDir || jarUriRoot.endsWith(cutOffInclSubDir.get()) ) {
             resUri = jarUriRoot.concat(relResPath);
         } else {
             resUri = jarUriRoot.concat(cutOffInclSubDir).concat(relResPath);
@@ -484,7 +480,6 @@ public class JarUtil {
         if( DEBUG ) {
             System.err.println("JarUtil.getRelativeOf: "+"...  -> "+resUri);
         }
-
         final Uri resJarUri = JarUtil.getJarFileUri(resUri);
         if( DEBUG ) {
             System.err.println("JarUtil.getRelativeOf: "+"fin "+resJarUri);
@@ -642,7 +637,7 @@ public class JarUtil {
                 final OutputStream out = new BufferedOutputStream(new FileOutputStream(destFile));
                 int numBytes = -1;
                 try {
-                    numBytes = IOUtil.copyStream2Stream(BUFFER_SIZE, in, out, -1);
+                    numBytes = IOUtil.copyStream2Stream(BUFFER_SIZE, in, out);
                 } finally {
                     in.close();
                     out.close();
@@ -674,7 +669,7 @@ public class JarUtil {
         // We tolerate UnsatisfiedLinkError (and derived) to solve the chicken and egg problem
         // of loading gluegen's native library.
         // On Safari(OSX), Bug 865, we simply hope the destination folder is executable.
-        if( Platform.OSType.MACOS == Platform.getOSType() ) {
+        if( Platform.OSType.MACOS == Platform.getOSType() || Platform.OSType.IOS == Platform.getOSType() ) {
             final String fileAbsPath = file.getAbsolutePath();
             try {
                 fixNativeLibAttribs(fileAbsPath);

@@ -1,4 +1,7 @@
-version=3
-http://jogamp.org/deployment/jogamp-current/archive/Sources/ gluegen-v(.*).tar.xz \
-debian debian/orig-tar.sh
+version=4
 
+opts="dversionmangle=auto, oversionmangle=s/(.*)/$1+dfsg/" \
+ https://jogamp.org/deployment/jogamp-current/archive/Sources/ gluegen-v(.*).tar.xz debian
+
+opts="component=jcpp, dversionmangle=auto" \
+ https://jogamp.org/deployment/jogamp-current/archive/Sources/jcpp-v@ANY_VERSION@.tar.xz ignore

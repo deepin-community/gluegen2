@@ -43,10 +43,15 @@ import java.io.Reader;
 import java.io.SyncFailedException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.ByteBuffer;
+import java.security.PrivilegedAction;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 import jogamp.common.Debug;
@@ -54,6 +59,7 @@ import jogamp.common.os.AndroidUtils;
 import jogamp.common.os.PlatformPropsImpl;
 
 import com.jogamp.common.ExceptionUtils;
+import com.jogamp.common.JogampRuntimeException;
 import com.jogamp.common.net.AssetURLContext;
 import com.jogamp.common.net.Uri;
 import com.jogamp.common.nio.Buffers;
@@ -65,14 +71,56 @@ public class IOUtil {
     private static final boolean DEBUG_EXE;
     private static final boolean DEBUG_EXE_NOSTREAM;
     private static final boolean DEBUG_EXE_EXISTING_FILE;
+    private static final boolean testTempDirExec;
+    private static final Method fileToPathGetter;
+    private static final Method isExecutableQuery;
+    private static final boolean useNativeExeFile;
 
     static {
-        Debug.initSingleton();
-        DEBUG = Debug.debug("IOUtil");
-        DEBUG_EXE = PropertyAccess.isPropertyDefined("jogamp.debug.IOUtil.Exe", true);
-        DEBUG_EXE_NOSTREAM = PropertyAccess.isPropertyDefined("jogamp.debug.IOUtil.Exe.NoStream", true);
-        // For security reasons, we have to hardcode this, i.e. disable this manual debug feature!
-        DEBUG_EXE_EXISTING_FILE = false; // PropertyAccess.isPropertyDefined("jogamp.debug.IOUtil.Exe.ExistingFile", true);
+        final boolean _props[] = { false, false, false, false, false, false };
+        final Method[] res = SecurityUtil.doPrivileged(new PrivilegedAction<Method[]>() {
+            @Override
+            public Method[] run() {
+                final Method[] res = new Method[] { null, null };
+                try {
+                    int i=0;
+                    _props[i++] = Debug.debug("IOUtil");
+                    _props[i++] = PropertyAccess.isPropertyDefined("jogamp.debug.IOUtil.Exe", true);
+                    _props[i++] =  PropertyAccess.isPropertyDefined("jogamp.debug.IOUtil.Exe.NoStream", true);
+                    // For security reasons, we have to hardcode this, i.e. disable this manual debug feature!
+                    _props[i++] = false; // PropertyAccess.isPropertyDefined("jogamp.debug.IOUtil.Exe.ExistingFile", true);
+                    _props[i++] = PropertyAccess.getBooleanProperty("jogamp.gluegen.TestTempDirExec", true, true);
+                    _props[i++] = PropertyAccess.getBooleanProperty("jogamp.gluegen.UseNativeExeFile", true, false);
+
+                    // Java 1.7
+                    i=0;
+                    res[i] = File.class.getDeclaredMethod("toPath");
+                    res[i++].setAccessible(true);
+                    final Class<?> nioPathClz = ReflectionUtil.getClass("java.nio.file.Path", false, IOUtil.class.getClassLoader());
+                    final Class<?> nioFilesClz = ReflectionUtil.getClass("java.nio.file.Files", false, IOUtil.class.getClassLoader());
+                    res[i] = nioFilesClz.getDeclaredMethod("isExecutable", nioPathClz);
+                    res[i++].setAccessible(true);
+                } catch (final Throwable t) {
+                    if(_props[0]) {
+                        ExceptionUtils.dumpThrowable("ioutil-init", t);
+                    }
+                }
+                return res;
+            }
+        });
+        {
+            int i=0;
+            DEBUG = _props[i++];
+            DEBUG_EXE = _props[i++];
+            DEBUG_EXE_NOSTREAM = _props[i++];
+            DEBUG_EXE_EXISTING_FILE = _props[i++];
+            testTempDirExec = _props[i++];
+            useNativeExeFile = _props[i++];
+
+            i=0;
+            fileToPathGetter = res[i++];
+            isExecutableQuery = res[i++];
+        }
     }
 
     /** Std. temporary directory property key <code>java.io.tmpdir</code>. */
@@ -123,7 +171,7 @@ public class IOUtil {
      */
 
     /**
-     * Copy the specified URL resource to the specified output file. The total
+     * Copy the complete specified URL resource to the specified output file. The total
      * number of bytes written is returned.
      *
      * @param conn the open URLConnection
@@ -137,7 +185,7 @@ public class IOUtil {
         int totalNumBytes = 0;
         final InputStream in = new BufferedInputStream(conn.getInputStream());
         try {
-            totalNumBytes = copyStream2File(in, outFile, conn.getContentLength());
+            totalNumBytes = copyStream2File(in, outFile);
         } finally {
             in.close();
         }
@@ -145,51 +193,47 @@ public class IOUtil {
     }
 
     /**
-     * Copy the specified input stream to the specified output file. The total
+     * Copy the complete specified input stream to the specified output file. The total
      * number of bytes written is returned.
      *
      * @param in the source
      * @param outFile the destination
-     * @param totalNumBytes informal number of expected bytes, maybe used for user feedback while processing. -1 if unknown
      * @return
      * @throws IOException
      */
-    public static int copyStream2File(final InputStream in, final File outFile, int totalNumBytes) throws IOException {
+    public static int copyStream2File(final InputStream in, final File outFile) throws IOException {
         final OutputStream out = new BufferedOutputStream(new FileOutputStream(outFile));
         try {
-            totalNumBytes = copyStream2Stream(in, out, totalNumBytes);
+            return copyStream2Stream(in, out);
         } finally {
             out.close();
         }
-        return totalNumBytes;
     }
 
     /**
-     * Copy the specified input stream to the specified output stream. The total
+     * Copy the complete specified input stream to the specified output stream. The total
      * number of bytes written is returned.
      *
      * @param in the source
      * @param out the destination
-     * @param totalNumBytes informal number of expected bytes, maybe used for user feedback while processing. -1 if unknown
      * @return
      * @throws IOException
      */
-    public static int copyStream2Stream(final InputStream in, final OutputStream out, final int totalNumBytes) throws IOException {
-        return copyStream2Stream(Platform.getMachineDataInfo().pageSizeInBytes(), in, out, totalNumBytes);
+    public static int copyStream2Stream(final InputStream in, final OutputStream out) throws IOException {
+        return copyStream2Stream(Platform.getMachineDataInfo().pageSizeInBytes(), in, out);
     }
 
     /**
-     * Copy the specified input stream to the specified output stream. The total
+     * Copy the complete specified input stream to the specified output stream. The total
      * number of bytes written is returned.
      *
      * @param bufferSize the intermediate buffer size, should be {@link MachineDataInfo#pageSizeInBytes()} for best performance.
      * @param in the source
      * @param out the destination
-     * @param totalNumBytes informal number of expected bytes, maybe used for user feedback while processing. -1 if unknown
      * @return
      * @throws IOException
      */
-    public static int copyStream2Stream(final int bufferSize, final InputStream in, final OutputStream out, final int totalNumBytes) throws IOException {
+    public static int copyStream2Stream(final int bufferSize, final InputStream in, final OutputStream out) throws IOException {
         final byte[] buf = new byte[bufferSize];
         int numBytes = 0;
         while (true) {
@@ -213,7 +257,7 @@ public class IOUtil {
     }
 
     /**
-     * Copy the specified input stream to a byte array, which is being returned.
+     * Copy the complete specified input stream to a byte array, which is being returned.
      */
     public static byte[] copyStream2ByteArray(InputStream stream) throws IOException {
         if( !(stream instanceof BufferedInputStream) ) {
@@ -246,8 +290,7 @@ public class IOUtil {
     }
 
     /**
-     * Copy the specified input stream to a NIO ByteBuffer w/ native byte order, which is being returned.
-     * <p>The implementation creates the ByteBuffer w/ {@link #copyStream2ByteArray(InputStream)}'s returned byte array.</p>
+     * Copy the complete specified input stream to a NIO ByteBuffer w/ native byte order, which is being returned.
      *
      * @param stream input stream, which will be wrapped into a BufferedInputStream, if not already done.
      */
@@ -256,11 +299,10 @@ public class IOUtil {
     }
 
     /**
-     * Copy the specified input stream to a NIO ByteBuffer w/ native byte order, which is being returned.
-     * <p>The implementation creates the ByteBuffer w/ {@link #copyStream2ByteArray(InputStream)}'s returned byte array.</p>
+     * Copy the complete specified input stream to a NIO ByteBuffer w/ native byte order, which is being returned.
      *
      * @param stream input stream, which will be wrapped into a BufferedInputStream, if not already done.
-     * @param initialCapacity initial buffer capacity in bytes, if &gt; available bytes
+     * @param initialCapacity initial buffer capacity in bytes, if &lt; currently available bytes, initial buffer capacity is set to currently available bytes.
      */
     public static ByteBuffer copyStream2ByteBuffer(InputStream stream, int initialCapacity) throws IOException {
         if( !(stream instanceof BufferedInputStream) ) {
@@ -290,6 +332,39 @@ public class IOUtil {
             avail = stream.available();
             chunk2Read = Math.min(machine.pageSizeInBytes(), avail);
         } while ( numRead > 0 ); // EOS: -1 == numRead, EOF maybe reached earlier w/ 0 == numRead
+
+        data.flip();
+        return data;
+    }
+
+    /**
+     * Copy the specified input stream chunk to a NIO ByteBuffer w/ native byte order, which is being returned.
+     *
+     * @param stream input stream, which will be wrapped into a BufferedInputStream, if not already done.
+     * @param skipBytes initial bytes to skip from input stream.
+     * @param byteCount bytes to copy starting after skipBytes.
+     */
+    public static ByteBuffer copyStreamChunk2ByteBuffer(InputStream stream, int skipBytes, int byteCount) throws IOException {
+        if( !(stream instanceof BufferedInputStream) ) {
+            stream = new BufferedInputStream(stream);
+        }
+        final MachineDataInfo machine = Platform.getMachineDataInfo();
+        final ByteBuffer data = Buffers.newDirectByteBuffer( machine.pageAlignedSize( byteCount ) );
+        final byte[] chunk = new byte[machine.pageSizeInBytes()];
+        int numRead = 1; // EOS: -1 == numRead, EOF maybe reached earlier w/ 0 == numRead
+        while ( numRead > 0 && skipBytes > 0 ) {
+            final int chunk2Read = Math.min(machine.pageSizeInBytes(), skipBytes);
+            numRead = stream.read(chunk, 0, chunk2Read);
+            skipBytes -= numRead;
+        }
+        while ( numRead > 0 && byteCount > 0 ) {
+            final int chunk2Read = Math.min(machine.pageSizeInBytes(), byteCount);
+            numRead = stream.read(chunk, 0, chunk2Read);
+            if (numRead > 0) {
+                data.put(chunk, 0, numRead);
+            }
+            byteCount -= numRead;
+        }
 
         data.flip();
         return data;
@@ -454,14 +529,6 @@ public class IOUtil {
         public final int resourceCount() { return resourcePaths.length; }
 
         /**
-         * @param contextCL class instance to {@link #resolve(int)} {@link #resourcePaths}.
-         * @param resourcePaths array of strings denominating multiple resource paths. None shall be null.
-         * @deprecated Use {@link #IOUtil(String[], ClassLoader, Class)} for clarity!
-         */
-        public ClassResources(final Class<?> contextCL, final String[] resourcePaths) {
-            this(resourcePaths, contextCL.getClassLoader(), contextCL);
-        }
-        /**
          * @param resourcePaths multiple relative or absolute resource locations
          * @param classLoader optional {@link ClassLoader}, see {@link IOUtil#getResource(String, ClassLoader, Class)}
          * @param relContext optional relative context, see {@link IOUtil#getResource(String, ClassLoader, Class)}
@@ -485,30 +552,6 @@ public class IOUtil {
         public URLConnection resolve(final int uriIndex) throws ArrayIndexOutOfBoundsException {
             return getResource(resourcePaths[uriIndex], classLoader, contextCL);
         }
-    }
-
-    /**
-     * Locating a resource using {@link #getResource(String, ClassLoader)}:
-     * <ul>
-     *   <li><i>relative</i>: <code>context</code>'s package name-path plus <code>resourcePath</code> via <code>context</code>'s ClassLoader.
-     *       This allows locations relative to JAR- and other URLs.
-     *       The <code>resourcePath</code> may start with <code>../</code> to navigate to parent folder.
-     *       This attempt is skipped if {@code context} is {@code null}.</li>
-     *   <li><i>absolute</i>: <code>resourcePath</code> as is via <code>context</code>'s ClassLoader.
-     *       In case {@code context} is {@code null}, this class {@link ClassLoader} is being used.</li>
-     * </ul>
-     * <p>
-     * Returns the resolved and open URLConnection or null if not found.
-     * </p>
-     *
-     * @see #getResource(String, ClassLoader)
-     * @see ClassLoader#getResource(String)
-     * @see ClassLoader#getSystemResource(String)
-     * @deprecated Use {@link IOUtil#getResource(String, ClassLoader, Class)} for clarity!
-     */
-    public static URLConnection getResource(final Class<?> context, final String resourcePath) {
-        final ClassLoader contextCL = null != context ? context.getClassLoader() : IOUtil.class.getClassLoader();
-        return getResource(resourcePath, contextCL, context);
     }
 
     /**
@@ -740,7 +783,7 @@ public class IOUtil {
     private static String getExeTestFileSuffix() {
         switch(PlatformPropsImpl.OS_TYPE) {
             case WINDOWS:
-              if( Platform.CPUFamily.X86 == PlatformPropsImpl.CPU_ARCH.family ) {
+              if( useNativeExeFile && Platform.CPUFamily.X86 == PlatformPropsImpl.CPU_ARCH.family ) {
                   return ".exe";
               } else {
                   return ".bat";
@@ -754,7 +797,7 @@ public class IOUtil {
             case WINDOWS:
               return "echo off"+PlatformPropsImpl.NEWLINE;
             default:
-              return null;
+              return "#!/bin/true"+PlatformPropsImpl.NEWLINE;
         }
     }
     private static String[] getExeTestCommandArgs(final String scriptFile) {
@@ -781,7 +824,8 @@ public class IOUtil {
     private static WeakReference<byte[]> exeTestCodeRef = null;
 
     private static void fillExeTestFile(final File exefile) throws IOException {
-        if( Platform.OSType.WINDOWS == PlatformPropsImpl.OS_TYPE &&
+        if( useNativeExeFile &&
+            Platform.OSType.WINDOWS == PlatformPropsImpl.OS_TYPE &&
             Platform.CPUFamily.X86 == PlatformPropsImpl.CPU_ARCH.family
           ) {
             final byte[] exeTestCode;
@@ -845,6 +889,7 @@ public class IOUtil {
         switch(PlatformPropsImpl.OS_TYPE) {
             case ANDROID:
             case MACOS:
+            case IOS:
             case WINDOWS:
             case OPENKODE:
               return false;
@@ -938,6 +983,18 @@ public class IOUtil {
         }
     }
 
+    private static final Boolean isNioExecutableFile(final File file) {
+        if( null != fileToPathGetter && null != isExecutableQuery ) {
+            try {
+                return (Boolean) isExecutableQuery.invoke(null, fileToPathGetter.invoke(file));
+            } catch (final Throwable t) {
+                throw new JogampRuntimeException("error invoking Files.isExecutable(file.toPath())", t);
+            }
+        } else {
+            return null;
+        }
+    }
+
     /**
      * Returns true if the given {@code dir}
      * <ol>
@@ -955,6 +1012,12 @@ public class IOUtil {
     {
         final boolean debug = DEBUG_EXE || DEBUG;
 
+        if( !testTempDirExec ) {
+            if(DEBUG) {
+                System.err.println("IOUtil.testDirExec: <"+dir.getAbsolutePath()+">: Disabled TestTempDirExec");
+            }
+            return false;
+        }
         if (!testFile(dir, true, true)) {
             if( debug ) {
                 System.err.println("IOUtil.testDirExec: <"+dir.getAbsolutePath()+">: Not writeable dir");
@@ -979,6 +1042,7 @@ public class IOUtil {
             } else {
                 exeTestFile = File.createTempFile("jogamp_exe_tst", getExeTestFileSuffix(), dir);
                 existingExe = false;
+                fillExeTestFile(exeTestFile);
             }
         } catch (final SecurityException se) {
             throw se; // fwd Security exception
@@ -992,41 +1056,52 @@ public class IOUtil {
         long t2;
         int res = -1;
         int exitValue = -1;
+        Boolean isNioExec = null;
         if( existingExe || exeTestFile.setExecutable(true /* exec */, true /* ownerOnly */) ) {
-            Process pr = null;
-            try {
-                if( !existingExe ) {
-                    fillExeTestFile(exeTestFile);
-                }
-                t2 = debug ? System.currentTimeMillis() : 0;
-                // Using 'Process.exec(String[])' avoids StringTokenizer of 'Process.exec(String)'
-                // and hence splitting up command by spaces!
-                // Note: All no-exec cases throw an IOExceptions at ProcessBuilder.start(), i.e. below exec() call!
-                pr = Runtime.getRuntime().exec( getExeTestCommandArgs( exeTestFile.getCanonicalPath() ), null, null );
-                if( DEBUG_EXE && !DEBUG_EXE_NOSTREAM ) {
-                    new StreamMonitor(new InputStream[] { pr.getInputStream(), pr.getErrorStream() }, System.err, "Exe-Tst: ");
-                }
-                pr.waitFor();
-                exitValue = pr.exitValue(); // Note: Bug 1219 Comment 50: On reporter's machine exit value 1 is being returned
-                res = 0; // file has been executed
-            } catch (final SecurityException se) {
-                throw se; // fwd Security exception
-            } catch (final Throwable t) {
-                t2 = debug ? System.currentTimeMillis() : 0;
-                res = -2;
-                if( debug ) {
-                    System.err.println("IOUtil.testDirExec: <"+exeTestFile.getAbsolutePath()+">: Caught "+t.getClass().getSimpleName()+": "+t.getMessage());
-                    t.printStackTrace();
-                }
-            } finally {
-                if( null != pr ) {
-                    // Bug 1219 Comment 58: Ensure that the launched process gets terminated!
-                    // This is Process implementation specific and varies on different platforms,
-                    // hence it may be required.
-                    try {
-                        pr.destroy();
-                    } catch (final Throwable t) {
-                        ExceptionUtils.dumpThrowable("", t);
+            t2 = debug ? System.currentTimeMillis() : 0;
+            // First soft exec test via NIO's ACL check, if available
+            isNioExec = isNioExecutableFile(exeTestFile);
+            if( null != isNioExec ) {
+                res = isNioExec.booleanValue() ? 0 : -1;
+            }
+            if( null == isNioExec || 0 <= res ) {
+                // Hard exec test via actual execution, if NIO's ACL check succeeded or not available.
+                // Required, since Windows 'Software Restriction Policies (SRP)' won't be triggered merely by NIO's ACL check.
+                Process pr = null;
+                try {
+                    // Using 'Process.exec(String[])' avoids StringTokenizer of 'Process.exec(String)'
+                    // and hence splitting up command by spaces!
+                    // Note: All no-exec cases throw an IOExceptions at ProcessBuilder.start(), i.e. below exec() call!
+                    pr = Runtime.getRuntime().exec( getExeTestCommandArgs( exeTestFile.getCanonicalPath() ), null, null );
+                    if( DEBUG_EXE && !DEBUG_EXE_NOSTREAM ) {
+                        new StreamMonitor(new InputStream[] { pr.getInputStream(), pr.getErrorStream() }, System.err, "Exe-Tst: ");
+                    }
+                    pr.waitFor();
+                    exitValue = pr.exitValue(); // Note: Bug 1219 Comment 50: On reporter's machine exit value 1 is being returned
+                    if( 0 == exitValue ) {
+                        res++; // file has been executed and exited normally
+                    } else {
+                        res = -2; // abnormal termination
+                    }
+                } catch (final SecurityException se) {
+                    throw se; // fwd Security exception
+                } catch (final Throwable t) {
+                    t2 = debug ? System.currentTimeMillis() : 0;
+                    res = -3;
+                    if( debug ) {
+                        System.err.println("IOUtil.testDirExec: <"+exeTestFile.getAbsolutePath()+">: Caught "+t.getClass().getSimpleName()+": "+t.getMessage());
+                        t.printStackTrace();
+                    }
+                } finally {
+                    if( null != pr ) {
+                        // Bug 1219 Comment 58: Ensure that the launched process gets terminated!
+                        // This is Process implementation specific and varies on different platforms,
+                        // hence it may be required.
+                        try {
+                            pr.destroy();
+                        } catch (final Throwable t) {
+                            ExceptionUtils.dumpThrowable("", t);
+                        }
                     }
                 }
             }
@@ -1034,13 +1109,13 @@ public class IOUtil {
             t2 = debug ? System.currentTimeMillis() : 0;
         }
 
-        final boolean ok = 0 == res;
+        final boolean ok = 0 <= res;
         if( !DEBUG_EXE && !existingExe ) {
             exeTestFile.delete();
         }
         if( debug ) {
             final long t3 = System.currentTimeMillis();
-            System.err.println("IOUtil.testDirExec(): test-exe <"+exeTestFile.getAbsolutePath()+">, existingFile "+existingExe+", returned "+exitValue);
+            System.err.println("IOUtil.testDirExec(): test-exe <"+exeTestFile.getAbsolutePath()+">, existingFile "+existingExe+", isNioExec "+isNioExec+", returned "+exitValue);
             System.err.println("IOUtil.testDirExec(): abs-path <"+dir.getAbsolutePath()+">: res "+res+" -> "+ok);
             System.err.println("IOUtil.testDirExec(): total "+(t3-t0)+"ms, create "+(t1-t0)+"ms, fill "+(t2-t1)+"ms, execute "+(t3-t2)+"ms");
         }
@@ -1117,7 +1192,7 @@ public class IOUtil {
        File tmpBaseDir = null;
        if(null != testDirImpl(tmpRoot, true /* create */, executable, dbgMsg)) { // check tmpRoot first
            for(int i = 0; null == tmpBaseDir && i<=9999; i++) {
-               final String tmpDirSuffix = String.format("_%04d", i); // 4 digits for iteration
+               final String tmpDirSuffix = String.format((Locale)null, "_%04d", i); // 4 digits for iteration
                tmpBaseDir = testDirImpl(new File(tmpRoot, tmpSubDirPrefix+tmpDirSuffix), true /* create */, executable, dbgMsg);
            }
        }
@@ -1225,7 +1300,7 @@ public class IOUtil {
 
                     // 1) java.io.tmpdir/jogamp
                     if( null == tempRootExec && null != java_io_tmpdir ) {
-                        if( Platform.OSType.MACOS == PlatformPropsImpl.OS_TYPE ) {
+                        if( Platform.OSType.MACOS == PlatformPropsImpl.OS_TYPE || Platform.OSType.IOS == PlatformPropsImpl.OS_TYPE ) {
                             // Bug 865: Safari >= 6.1 [OSX] May employ xattr on 'com.apple.quarantine' on 'PluginProcess.app'
                             // We attempt to fix this issue _after_ gluegen native lib is loaded, see JarUtil.fixNativeLibAttribs(File).
                             tempRootExec = getSubTempDir(java_io_tmpdir, tmpSubDir, false /* executable */, "tempX1");
@@ -1355,5 +1430,76 @@ public class IOUtil {
             }
         }
         return null;
+    }
+
+    /**
+     * Retrieve the list of all filenames traversing through given paths
+     * @param paths list of paths to traverse through, containing directories and files
+     * @param excludes optional list of exclude {@link Pattern}. All {@link Pattern#matcher(CharSequence) matching} files or directories will be omitted. Maybe be null or empty.
+     * @param includes optional list of explicit include {@link Pattern}. If given, only {@link Pattern#matcher(CharSequence) matching} files will be returned, otherwise all occurring.
+     * @return list of unsorted filenames within given paths
+     */
+    public static ArrayList<String> filesOf(final List<String> paths, final List<Pattern> excludes, final List<Pattern> includes) {
+        final ArrayList<String> files = new ArrayList<String>(paths.size()*32);
+        final ArrayList<String> todo = new ArrayList<String>(paths);
+        while(todo.size() > 0) {
+            final String p = todo.remove(0);
+            if( null != excludes && excludes.size() > 0) {
+                boolean exclude = false;
+                for(int i=0; !exclude && i<excludes.size(); i++) {
+                    exclude = excludes.get(i).matcher(p).matches();
+                    if( DEBUG ) {
+                        if( exclude ) {
+                            System.err.println("IOUtil.filesOf(): excluding <"+p+"> (exclude["+i+"]: "+excludes.get(i)+")");
+                        }
+                    }
+                }
+                if( exclude ) {
+                    continue; // skip further processing, continue w/ next path
+                }
+            }
+            final File f = new File(p);
+            if( !f.exists() ) {
+                if( DEBUG ) {
+                    System.err.println("IOUtil.filesOf(): not existing: "+f);
+                }
+                continue;
+            } else if( f.isDirectory() ) {
+                final String[] subs = f.list();
+                if( null == subs ) {
+                    if( DEBUG ) {
+                        System.err.println("IOUtil.filesOf(): null list of directory: "+f);
+                    }
+                } else if( 0 == subs.length ) {
+                    if( DEBUG ) {
+                        System.err.println("IOUtil.filesOf(): empty list of directory: "+f);
+                    }
+                } else {
+                    int j=0;
+                    final String pp = p.endsWith("/") ? p : p+"/";
+                    for(int i=0; i<subs.length; i++) {
+                        todo.add(j++, pp+subs[i]); // add 'in-place' to soothe the later sorting algorithm
+                    }
+                }
+            } else {
+                if( null != includes && includes.size() > 0) {
+                    boolean include = false;
+                    for(int i=0; !include && i<includes.size(); i++) {
+                        include = includes.get(i).matcher(p).matches();
+                        if( DEBUG ) {
+                            if( include ) {
+                                System.err.println("IOUtil.filesOf(): including <"+p+"> (including["+i+"]: "+includes.get(i)+")");
+                            }
+                        }
+                    }
+                    if( include ) {
+                        files.add(p);
+                    }
+                } else {
+                    files.add(p);
+                }
+            }
+        }
+        return files;
     }
 }

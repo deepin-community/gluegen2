@@ -1,8 +1,84 @@
-gluegen2 (2.3.2-9deepin1) unstable; urgency=medium
+gluegen2 (2.5.0+dfsg-3) unstable; urgency=medium
 
-  * Add loong64 support
+  * Fixing build with gcc14 (Closes: #1075013)
+  * Raising Standards version to 4.7.0 (no change)
 
- -- Han Gao <gaohan@iscas.ac.cn>  Sun, 14 May 2023 01:08:05 +0800
+ -- Pierre Gruet <pgt@debian.org>  Tue, 09 Jul 2024 23:36:23 +0200
+
+gluegen2 (2.5.0+dfsg-2) unstable; urgency=medium
+
+  * Adding patch of yalingfang to build on LoongArch
+  * Stopping building the -doc package (Closes: #1057503)
+  * Fixing minor spelling mistakes
+
+ -- Pierre Gruet <pgt@debian.org>  Thu, 14 Dec 2023 23:30:56 +0100
+
+gluegen2 (2.5.0+dfsg-1) unstable; urgency=medium
+
+  * New upstream version 2.5.0+dfsg
+  * Refreshing patches
+  * Refreshing copyright years
+  * Fixing the clean target (Closes: #1044545)
+  * Excluding embedded jars in the jcpp component tarball
+  * Build-depending on libguava-java for the build and the tests
+  * Hardening by passing CFLAGS and CPPFLAGS
+  * Ignoring @Nonnull annotation in the tests
+
+ -- Pierre Gruet <pgt@debian.org>  Mon, 11 Sep 2023 20:43:32 +0200
+
+gluegen2 (2.4.0+dfsg-1) unstable; urgency=medium
+
+  * Adding myself as uploader (Closes: #783519)
+  * Aligning dependencies in d/control
+  * Adding version mangling for the component in d/watch
+  * Fixing the regex delimiter in d/rules
+  * Forwarding patches
+
+ -- Pierre Gruet <pgt@debian.org>  Sun, 18 Jun 2023 15:16:23 +0200
+
+gluegen2 (2.4.0+dfsg-1~exp1) experimental; urgency=medium
+
+  * Team upload.
+  * Providing the right path for the Debian-installed cpptasks jar
+
+ -- Pierre Gruet <pgt@debian.org>  Sun, 16 Apr 2023 22:05:09 +0200
+
+gluegen2 (2.4.0+dfsg-1~exp0) experimental; urgency=medium
+
+  * Team upload.
+  * New upstream version 2.4.0+dfsg:
+    - Repacking through the Files-Excluded mechanism and a MUT package
+    - Excluding non-free contents in make/stub_includes/jni
+  * Raising Standards version to 4.6.2
+    - Setting Rules-Requires-Root: no
+  * Working on debian/patches/:
+    - Refreshing patches
+    - Revising all patch headers
+    - Cleaning old, long unused patches
+  * Working on debian/control:
+    - Revising the versioned dependencies and the Suggests:
+    - Revising the short descriptions of the binary packages
+    - Marking the -doc package as Multi-Arch: foreign
+    - Marking the junit4 B-D with nocheck
+  * Working on debian/rules:
+    - Rewriting get-orig-pom rule as we now append +dfsg to upstream version
+      numbers
+    - Honouring DEB_BUILD_OPTIONS=nocheck
+  * Refreshing debian/copyright
+  * Raising debian/watch version to 4
+  * Raising sourcelevel and targetlevel to 1.8 in debian/ant.properties
+  * Removing now outdated debian/README.source file
+  * Removing cc attributes that ant does not understand
+  * Providing the path of the build .so file to the tests
+  * Including the jni headers from the system instead of the non-free embedded
+    ones
+  * Changing the name of the .so to be installed in the -jni package
+  * Adding missing shebangs in packaged scripts
+  * Hardening by passing the LDFLAGS contents to the ant build file
+  * Adding a Lintian override for shipped text files, seen as documentation
+  * Manually updating the embedded pom file
+
+ -- Pierre Gruet <pgt@debian.org>  Sun, 19 Mar 2023 08:20:16 +0100
 
 gluegen2 (2.3.2-9) unstable; urgency=medium
 

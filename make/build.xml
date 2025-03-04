@@ -33,6 +33,12 @@
       <pathelement location="${antlr.jar}" />
       <pathelement location="${semver.jar}" />
     </path>
+    <path id="javadoc_gluegen.classpath">
+      <pathelement location="${ant.jar}" />
+      <pathelement location="${antlr.jar}" />
+      <pathelement location="${semver.jar}" />
+      <pathelement location="${gluegen.jar}" />
+    </path>
   </target>
 
   <target name="init.android" if="android-jars.available" >
@@ -54,7 +60,8 @@
 
     <!-- property name="javadoc.link" value="http://java.sun.com/j2se/1.4.2/docs/api/" /-->
     <!-- property name="javadoc.link" value="http://download.oracle.com/javase/1.5.0/docs/api/" /-->
-    <property name="javadoc.link" value="http://docs.oracle.com/javase/6/docs/api/" />
+    <!-- property name="javadoc.link" value="http://docs.oracle.com/javase/6/docs/api/" /-->
+    <property name="javadoc.link" value="https://docs.oracle.com/javase/8/docs/api/" />
 
     <!-- The source and build directories. -->
     <property name="project.root"  value=".." />
@@ -87,6 +94,12 @@
 
     <property name="gluegen.version" value="${jogamp.version.base}-b${gluegen.build.number}-${version.timestamp}" />
 
+    <delete includeEmptyDirs="false">
+      <fileset dir="${project.root}" includes="make/GnuCTreeParserTokenTypes.txt make/STDCTokenTypes.txt" />
+    </delete>
+    <echo message="gluegen.build.branch         ${gluegen.build.branch}"/>
+    <echo message="gluegen.build.commit         ${gluegen.build.commit}"/>
+
     <property name="stub.includes.dir" value="stub_includes" /> <!-- NOTE:  this MUST be relative for FileSet -->
 
     <!-- The generated source directories. -->
@@ -96,6 +109,9 @@
 
     <!-- The compiler output directories. -->
     <property name="classes" value="${build}/classes" />
+    <pathconvert targetos="unix" property="classes.unix">
+        <path location="${classes}"/>
+    </pathconvert>
 
     <!-- Call the external config validator script to make sure the config is ok and consistent -->
     <ant antfile="validate-properties.xml" inheritall="true"/>
@@ -127,8 +143,6 @@
       - C grammar via ANTLR. -->
     <property name="c.grammar.out.dir" value="${src.generated.java}/com/jogamp/gluegen/cgram" />
     <property name="j.grammar.out.dir" value="${src.generated.java}/com/jogamp/gluegen/jgram" />
-
-    <property name="tools.jar" value="${java.home}/../lib/tools.jar"/>
 
     <property name="archive.name"     value="gluegen-${gluegen.version}-${os.and.arch}" />
     <property name="archive"          value="${build}/${archive.name}" />
@@ -276,6 +290,12 @@
       <property name="linker.cfg.id"                        value="linker.cfg.linux.armv6" /> 
     </target>
 
+    <target name="declare.linux.aarch64" if="isLinuxARM64">
+      <echo message="Linux.aarch64" />
+      <property name="compiler.cfg.id"                      value="compiler.cfg.linux.aarch64" />
+      <property name="linker.cfg.id"                        value="linker.cfg.linux.aarch64" />
+    </target>
+
     <target name="declare.linux.alpha" if="isLinuxAlpha">
       <echo message="Linux.alpha" />
       <property name="compiler.cfg.id"                      value="compiler.cfg.linux" /> 
@@ -306,6 +326,24 @@
       <property name="linker.cfg.id"                        value="linker.cfg.linux.ppc" /> 
     </target>
 
+    <target name="declare.linux.ppc64" if="isLinuxPpc64">
+      <echo message="Linux.ppc64" />
+      <property name="compiler.cfg.id"                      value="compiler.cfg.linux" />
+      <property name="linker.cfg.id"                        value="linker.cfg.linux.ppc64" />
+    </target>
+
+    <target name="declare.linux.ppc64le" if="isLinuxPpc64le">
+      <echo message="Linux.ppc64le" />
+      <property name="compiler.cfg.id"                      value="compiler.cfg.linux" />
+      <property name="linker.cfg.id"                        value="linker.cfg.linux.ppc64le" />
+    </target>
+
+    <target name="declare.linux.riscv64" if="isLinuxRiscV64">
+      <echo message="Linux.riscv64" />
+      <property name="compiler.cfg.id"                      value="compiler.cfg.linux" />
+      <property name="linker.cfg.id"                        value="linker.cfg.linux.riscv64" />
+    </target>
+
     <target name="declare.linux.s390" if="isLinuxs390">
       <echo message="Linux.s390" />
       <property name="compiler.cfg.id"                      value="compiler.cfg.linux" /> 
@@ -324,7 +362,7 @@
       <property name="linker.cfg.id"                        value="linker.cfg.linux.sparc" /> 
     </target>
     
-    <target name="declare.linux" depends="declare.linux.x86,declare.linux.amd64,declare.linux.ia64,declare.linux.hppa,declare.linux.mips,declare.linux.mipsel,declare.linux.ppc,declare.linux.s390,declare.linux.s390x,declare.linux.sparc,declare.linux.armv6" if="isLinux" >
+    <target name="declare.linux" depends="declare.linux.x86,declare.linux.amd64,declare.linux.ia64,declare.linux.hppa,declare.linux.mips,declare.linux.mipsel,declare.linux.ppc,declare.linux.ppc64,declare.linux.ppc64le,declare.linux.riscv64,declare.linux.s390,declare.linux.s390x,declare.linux.sparc,declare.linux.armv6,declare.linux.aarch64" if="isLinux" >
       <property name="c.src.dir.os"                         value="unix" />
     </target>
 
@@ -361,6 +399,20 @@
       <property name="c.src.dir.os"                         value="unix" />
     </target>
     
+    <target name="declare.ios.amd64" if="isIOSAmd64">
+      <echo message="IOSAmd64" />
+      <property name="compiler.cfg.id"                      value="compiler.cfg.ios.amd64" /> 
+      <property name="linker.cfg.id"                        value="linker.cfg.ios.amd64" /> 
+      <property name="c.src.dir.os"                         value="unix" />
+    </target>
+    
+    <target name="declare.ios.arm64" if="isIOSArm64">
+      <echo message="IOSArm64" />
+      <property name="compiler.cfg.id"                      value="compiler.cfg.ios.arm64" /> 
+      <property name="linker.cfg.id"                        value="linker.cfg.ios.arm64" /> 
+      <property name="c.src.dir.os"                         value="unix" />
+    </target>
+    
     <target name="declare.freebsd.amd64" if="isFreeBSDAMD64">
       <echo message="FreeBSDAMD64" />
       <property name="compiler.cfg.id"                      value="compiler.cfg.freebsd" />
@@ -386,58 +438,49 @@
       <property name="c.src.dir.os"                         value="unix" />
     </target>
 
-    <target name="c.configure" depends="gluegen.cpptasks.detect.os,gluegen.cpptasks.setup.compiler,declare.win32,declare.linux,declare.android,declare.solaris,declare.macosx,declare.freebsd,declare.hpux,gluegen.cpptasks.configure.compiler" unless="build.javaonly" />
-
-    <target name="c.rename.lib.mingw" if="isMingW">
-      <!-- FIXME: this is a hack; the cpptask should have an option to change the
-           suffix or at least understand the override from .so to .dll -->
-      <move file="${build}/obj/libgluegen-rt.so" tofile="${build}/obj/gluegen-rt.dll" />
-    </target>
-
-    <target name="c.rename.lib.macosx" if="isOSX">
-      <move file="${build}/obj/libgluegen-rt.dylib" tofile="${build}/obj/libgluegen-rt.jnilib" />
-      <copy file="${build}/obj/libgluegen-rt.jnilib" tofile="${build}/obj/libgluegen-rt.so" />
-    </target>
+    <target name="c.configure" depends="gluegen.cpptasks.detect.os,gluegen.cpptasks.setup.compiler,declare.win32,declare.linux,declare.android,declare.solaris,declare.macosx,declare.ios.amd64,declare.ios.arm64,declare.freebsd,declare.hpux,gluegen.cpptasks.configure.compiler" />
 
     <target name="c.manifest" if="isVC8Family">
       <!-- exec mt, the Microsoft Manifest Tool, to include DLL manifests in order to resolve the location of msvcr80.dll -->
-      <msvc.manifest objdir="${build}/obj" dllname="gluegen-rt" />
+      <msvc.manifest objdir="${build}/obj" dllname="gluegen_rt" />
     </target>
 
-    <target name="gluegen.build.c" depends="init, c.configure" unless="build.javaonly" >
+    <target name="gluegen.build.native" depends="init, c.configure" >
       <property name="c.compiler.src.files.common" value="src/native/common/*.c" />
       <property name="c.compiler.src.files.os" value="src/native/${c.src.dir.os}/*.c" />
 
-      <property name="output.lib.name" value="gluegen-rt" />
-      <condition property="output.lib.name.os" value="lib${output.lib.name}.so"><isset property="isUnix"/></condition>
-      <condition property="output.lib.name.os" value="${output.lib.name}.dll"><isset property="isWindows"/></condition>
-      <condition property="output.lib.name.os" value="lib${output.lib.name}.jnilib"><isset property="isOSX"/></condition>
+      <property name="output.lib.name" value="gluegen_rt" /> <!-- dash replaced by underscore to allow static linkage via JEP 178 -->
+      <property name="output.lib.name.os" value="${native.library.prefix}${output.lib.name}.${native.library.suffix}" />
 
-      <uptodate property="gluegen.build.skip.c">
+      <uptodate property="gluegen.build.skip.native">
         <srcfiles dir= "${project.root}"  includes="${c.compiler.src.files.os}"/>
         <srcfiles dir= "${project.root}"  includes="${c.compiler.src.files.common}"/>
         <mapper type="merge" to="${gluegen.lib.dir}/${output.lib.name.os}"/>
       </uptodate>
 
+      <condition property="gluegen.package.native.done" value="true">
+        <isset property="gluegen.build.skip.native"/>
+      </condition>
       <antcall target="gluegen.build.c.impl" inheritAll="true" inheritRefs="true" />
     </target>
 
-    <target name="gluegen.build.c.impl" depends="init, c.configure" unless="gluegen.build.skip.c">
+    <target name="gluegen.build.c.impl" depends="init, c.configure" unless="gluegen.build.skip.native">
+      <echo message="clearing gluegen.build.shasum.done (2) - was ${gluegen.build.shasum.done}"/>
+      <var name="gluegen.build.shasum.done" unset="true"/>
+      <var name="gluegen.package.native.done" unset="true"/>
       <fail message="Requires '${compiler.cfg.id}'"      unless="compiler.cfg.id"/>
       <fail message="Requires '${linker.cfg.id}'"        unless="linker.cfg.id"/>
 
-      <javah destdir="${src.generated.c}"         classpath="${classes}" class="com.jogamp.common.os.Platform, com.jogamp.common.nio.PointerBuffer, jogamp.common.jvm.JVMUtil, com.jogamp.common.util.JarUtil, jogamp.common.os.MachineDataInfoRuntime" />
-      <javah destdir="${src.generated.c}/Unix"    classpath="${classes}" class="jogamp.common.os.UnixDynamicLinkerImpl" />
-      <javah destdir="${src.generated.c}/Windows" classpath="${classes}" class="jogamp.common.os.WindowsDynamicLinkerImpl"/>
-
-      <echo message="Output lib name = ${output.lib.name} -> ${output.lib.name.os}" />
+      <echo message="Output lib name = ${output.lib.name} -> ${output.lib.name.os} [${output.lib.type}]" />
 
       <mkdir dir="${gluegen.lib.dir}"/>
 
       <echo message="Compiling ${c.compiler.src.files.os} ${c.compiler.src.files.common}" />
       <echo message="user.dir=${user.dir}" />
 
-      <cc outtype="shared" 
+      <cc outtype="${output.lib.type}" 
+          usehighleveltool="true"
+          writesoname="true"
           objdir="${gluegen.lib.dir}"
           outfile="${gluegen.lib.dir}/${output.lib.name}"
           optimize="${c.compiler.optimise}" 
@@ -469,26 +512,50 @@
           <includepath path="${src.generated.c}" />
           <includepath path="${src.generated.c}/Unix" if="isUnix"/>
           <includepath path="${src.generated.c}/Unix" if="isOSX"/>
+          <includepath path="${src.generated.c}/Unix" if="isIOS"/>
           <includepath path="${src.generated.c}/Windows" if="isWindows"/>
         </compiler>
 
         <linker extends="${linker.cfg.id}" />
+
       </cc>
 
-      <antcall target="c.rename.lib.mingw" inheritRefs="true" />
-      <antcall target="c.rename.lib.macosx" inheritRefs="true" />
+      <gluegen.make.libsymbols builddir="${build}" 
+         nativelib="${gluegen.lib.dir}/${output.lib.name.os}" 
+         symbolsfile="${gluegen.lib.dir}/${native.library.prefix}${output.lib.name}.symbols" />
 
       <antcall target="gluegen.cpptasks.striplibs" inheritRefs="true">
           <param name="libdir" value="${gluegen.lib.dir}"/>
       </antcall>
 
       <antcall target="c.manifest" inheritRefs="true" />
+    </target>  
+
+    <target name="gluegen.package.native" depends="init, c.configure" unless="gluegen.package.native.done" >
+      <property name="gluegen.package.native.done" value="true" />
+      <copy file="Manifest-rt-natives"
+            tofile="${build}/Manifest-rt-natives.temp"
+            overwrite="true">
+          <filterset>
+              <filter token="VERSION" value="${jogamp.version}"/>
+              <filter token="BUILD_VERSION" value="${gluegen.version}"/>
+              <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
+              <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
+              <filter token="SHA_SOURCES" value="${gluegen.build.sha.sources}"/>
+              <filter token="SHA_CLASSES" value="${gluegen.build.sha.classes}"/>
+              <filter token="SHA_CLASSES_THIS" value="0"/>
+              <filter token="SHA_NATIVES" value="${gluegen.build.sha.natives}"/>
+              <filter token="SHA_NATIVES_THIS" value="${gluegen.build.sha.natives}"/>
+              <filter token="BASEVERSION" value="${jogamp.version.base}"/>
+              <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
+          </filterset>
+      </copy>
 
       <native.tag.jar objdir="${build}/obj"
                       nativejarfile="${build}/gluegen-rt-natives-${os.and.arch}.jar"
                       manifestfile="${build}/Manifest-rt-natives.temp" 
                       module="common"
-                      includelibs="*gluegen-rt.${native.library.suffix}" />
+                      includelibs="*${output.lib.name}.${native.library.suffix}" />
 
       <!-- Produce duplicates for different configurations, since non-native-jar aliasing (Bug 1023/Bug 1024) -->
       <copy file="${build}/gluegen-rt-natives-${os.and.arch}.jar" tofile="${build}/gluegen-rt-android-natives-${os.and.arch}.jar"/>
@@ -632,7 +699,7 @@
     -->
   <target name="generate.java">
     <!-- Generate the Java files -->
-    <antlr target="${output.dir}/${target}" outputdirectory="${output.dir}">
+    <antlr target="${output.dir}/${target}" outputdirectory="${output.dir}" debug="no" trace="no">
       <classpath refid="antlr.classpath" />
     </antlr>
   </target>
@@ -648,7 +715,7 @@
    -->
   <target name="generate.java.override">
     <!-- Generate the Java files -->
-    <antlr target="${output.dir}/${target}" glib="${output.dir}/${override}" outputdirectory="${output.dir}">
+    <antlr target="${output.dir}/${target}" glib="${output.dir}/${override}" outputdirectory="${output.dir}" debug="no" trace="no">
       <classpath refid="antlr.classpath" />
     </antlr>
   </target>
@@ -702,13 +769,15 @@
     </antcall>
 
     <!-- Build GlueGen using the generated Java files along with the
-      - original source. -->
+         original source in multiple stages below. -->
 
-    <!-- Compile gluegen-rt first -->
+    <!-- Compile gluegen-rt first including generation of native headers -->
+    <!-- This has a hard Java8 target spec requirement: source, target + bootclasspath -->
     <javac destdir="${classes}"
            includeAntRuntime="false"
            includes="${gluegen-rt.classes} ${jogamp.common.classes}"
            excludes="${gluegen.excludes.all} ${java.part.android}"
+           nativeheaderdir="${src.generated.c}"
            memoryMaximumSize="${javac.memorymax}"
            encoding="UTF-8"
            source="${target.sourcelevel}" 
@@ -718,7 +787,12 @@
       <src path="${src.java}" />
       <src path="${src.generated.java}" />
       <classpath refid="cc_gluegen.classpath" />
+      <!-- compilerarg line="release ${target.releaselevel}"/ -->
     </javac>
+
+    <!-- move platform-specific native headers into the right directories -->
+    <move file="${src.generated.c}/jogamp_common_os_UnixDynamicLinkerImpl.h" todir="${src.generated.c}/Unix" failonerror="false" quiet="true"/>
+    <move file="${src.generated.c}/jogamp_common_os_WindowsDynamicLinkerImpl.h" todir="${src.generated.c}/Windows" failonerror="false" quiet="true"/>
 
     <!-- make non-java code available in classpath -->
     <copy todir="${classes}">
@@ -727,28 +801,37 @@
                  excludes="**/*.java"/>
     </copy>
 
-    <!-- Compile gluegen (compile time).
-
-         Uses host.rt.jar, since we require 'com.sun.tools.doclets.Taglet',
-         w/o it breaks build on OSX w/ Java6 compiler. 
-         Surprisingly it works on other platforms, which seems to pick classes
-         outside of the 'bootclasspath'.
-      -->
+    <!-- Compile gluegen (compile time).  -->
+    <!-- This has a soft Java8 bytecote target only (Using some build time APIs): target -->
     <javac destdir="${classes}"
            includeAntRuntime="true"
            excludes="${gluegen.excludes.all} ${gluegen-rt.classes} ${java.part.android}"
            memoryMaximumSize="${javac.memorymax}"
            encoding="UTF-8"
-           source="${target.sourcelevel}"
+           source="${target.sourcelevel}" 
            target="${target.targetlevel}" 
-           bootclasspath="${host.rt.jar}"
            debug="${javacdebug}" debuglevel="${javacdebuglevel}">
       <src path="${src.jcpp}" />
       <src path="${src.java}" />
       <src path="${src.generated.java}" />
       <classpath refid="cc_gluegen.classpath" />
     </javac>
+  </target>
 
+  <target name="gluegen.package.javase">
+    <java classname="com.jogamp.common.util.SHASum" logError="true" failonerror="true" fork="true" newenvironment="true"
+          classpath="${classes}"
+          outputproperty="gluegen.build.sha.classes.gluegen">
+        <sysproperty key="java.library.path" value="${gluegen.lib.dir}"/>
+
+        <arg value="--include"/>
+        <arg value="${classes.unix}/.*\.class"/>
+
+        <arg value="--exclude"/>
+        <arg value="${classes.unix}/jogamp/android/launcher"/>
+
+        <arg value="${classes.unix}"/>
+    </java>
     <copy file="Manifest"
           tofile="${build}/Manifest.temp"
           overwrite="true">
@@ -757,6 +840,11 @@
             <filter token="BUILD_VERSION" value="${gluegen.version}"/>
             <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
             <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
+            <filter token="SHA_SOURCES" value="${gluegen.build.sha.sources}"/>
+            <filter token="SHA_CLASSES" value="${gluegen.build.sha.classes}"/>
+            <filter token="SHA_CLASSES_THIS" value="${gluegen.build.sha.classes.gluegen}"/>
+            <filter token="SHA_NATIVES" value="${gluegen.build.sha.natives}"/>
+            <filter token="SHA_NATIVES_THIS" value="0"/>
             <filter token="BASEVERSION" value="${jogamp.version.base}"/>
             <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
         </filterset>
@@ -776,6 +864,27 @@
       </fileset>
     </jar>
 
+    <java classname="com.jogamp.common.util.SHASum" logError="true" failonerror="true" fork="true" newenvironment="true"
+          classpath="${classes}"
+          outputproperty="gluegen.build.sha.classes.gluegen-rt">
+        <sysproperty key="java.library.path" value="${gluegen.lib.dir}"/>
+
+        <arg value="--include"/>
+        <arg value="${classes.unix}/com/jogamp/gluegen/runtime/.*\.class" />
+        <arg value="--include"/>
+        <arg value="${classes.unix}/com/jogamp/common/.*" />
+        <arg value="--include"/>
+        <arg value="${classes.unix}/jogamp/common/.*" />
+
+        <arg value="--exclude"/>
+        <arg value="${classes.unix}/jogamp/android/launcher"/>
+        <arg value="--exclude"/>
+        <arg value="${classes.unix}/jogamp/common/os/android" />
+        <arg value="--exclude"/>
+        <arg value="${classes.unix}/com/jogamp/gluegen/jcpp" />
+
+        <arg value="${classes.unix}"/>
+    </java>
     <copy file="Manifest-rt"
           tofile="${build}/Manifest-rt.temp"
           overwrite="true">
@@ -784,58 +893,11 @@
             <filter token="BUILD_VERSION" value="${gluegen.version}"/>
             <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
             <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
-            <filter token="BASEVERSION" value="${jogamp.version.base}"/>
-            <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
-        </filterset>
-    </copy>
-
-    <copy file="jogamp-fat.mf"
-          tofile="${build}/jogamp-fat.mf"
-          overwrite="true">
-        <filterset>
-            <filter token="VERSION" value="${jogamp.version}"/>
-            <filter token="BUILD_VERSION" value="${gluegen.version}"/>
-            <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
-            <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
-            <filter token="BASEVERSION" value="${jogamp.version.base}"/>
-            <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
-        </filterset>
-    </copy>
-
-    <copy file="jogamp-fat-test.mf"
-          tofile="${build}/jogamp-fat-test.mf"
-          overwrite="true">
-        <filterset>
-            <filter token="VERSION" value="${jogamp.version}"/>
-            <filter token="BUILD_VERSION" value="${gluegen.version}"/>
-            <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
-            <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
-            <filter token="BASEVERSION" value="${jogamp.version.base}"/>
-            <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
-        </filterset>
-    </copy>
-
-    <!-- copy file="Manifest-rt-alt"
-          tofile="${build}/Manifest-rt-alt.temp"
-          overwrite="true">
-        <filterset>
-            <filter token="VERSION" value="${jogamp.version}"/>
-            <filter token="BUILD_VERSION" value="${gluegen.version}"/>
-            <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
-            <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
-            <filter token="BASEVERSION" value="${jogamp.version.base}"/>
-            <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
-        </filterset>
-    </copy -->
-
-    <copy file="Manifest-rt-natives"
-          tofile="${build}/Manifest-rt-natives.temp"
-          overwrite="true">
-        <filterset>
-            <filter token="VERSION" value="${jogamp.version}"/>
-            <filter token="BUILD_VERSION" value="${gluegen.version}"/>
-            <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
-            <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
+            <filter token="SHA_SOURCES" value="${gluegen.build.sha.sources}"/>
+            <filter token="SHA_CLASSES" value="${gluegen.build.sha.classes}"/>
+            <filter token="SHA_CLASSES_THIS" value="${gluegen.build.sha.classes.gluegen-rt}"/>
+            <filter token="SHA_NATIVES" value="${gluegen.build.sha.natives}"/>
+            <filter token="SHA_NATIVES_THIS" value="0"/>
             <filter token="BASEVERSION" value="${jogamp.version.base}"/>
             <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
         </filterset>
@@ -856,6 +918,23 @@
       </fileset>
     </jar>
 
+    <!-- copy file="Manifest-rt-alt"
+          tofile="${build}/Manifest-rt-alt.temp"
+          overwrite="true">
+        <filterset>
+            <filter token="VERSION" value="${jogamp.version}"/>
+            <filter token="BUILD_VERSION" value="${gluegen.version}"/>
+            <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
+            <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
+            <filter token="SHA_SOURCES" value="${gluegen.build.sha.sources}"/>
+            <filter token="SHA_CLASSES" value="${gluegen.build.sha.classes}"/>
+            <filter token="SHA_CLASSES_THIS" value="${gluegen.build.sha.classes.gluegen-rt-alt}"/>
+            <filter token="SHA_NATIVES" value="${gluegen.build.sha.natives}"/>
+            <filter token="SHA_NATIVES_THIS" value="0"/>
+            <filter token="BASEVERSION" value="${jogamp.version.base}"/>
+            <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
+        </filterset>
+    </copy -->
     <!-- Build gluegen-rt-alt.jar. -->
     <!-- jar destfile="${build}/gluegen-rt-alt.jar" manifest="${build}/Manifest-rt-alt.temp">
       <fileset dir="${classes}">
@@ -870,6 +949,42 @@
         <include name="**" />
       </fileset>
     </jar -->
+
+    <copy file="jogamp-fat.mf"
+          tofile="${build}/jogamp-fat.mf"
+          overwrite="true">
+        <filterset>
+            <filter token="VERSION" value="${jogamp.version}"/>
+            <filter token="BUILD_VERSION" value="${gluegen.version}"/>
+            <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
+            <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
+            <filter token="SHA_SOURCES" value="${gluegen.build.sha.sources}"/>
+            <filter token="SHA_CLASSES" value="${gluegen.build.sha.classes}"/>
+            <filter token="SHA_CLASSES_THIS" value="${gluegen.build.sha.classes}"/>
+            <filter token="SHA_NATIVES" value="${gluegen.build.sha.natives}"/>
+            <filter token="SHA_NATIVES_THIS" value="${gluegen.build.sha.natives}"/>
+            <filter token="BASEVERSION" value="${jogamp.version.base}"/>
+            <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
+        </filterset>
+    </copy>
+
+    <copy file="jogamp-fat-test.mf"
+          tofile="${build}/jogamp-fat-test.mf"
+          overwrite="true">
+        <filterset>
+            <filter token="VERSION" value="${jogamp.version}"/>
+            <filter token="BUILD_VERSION" value="${gluegen.version}"/>
+            <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
+            <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
+            <filter token="SHA_SOURCES" value="${gluegen.build.sha.sources}"/>
+            <filter token="SHA_CLASSES" value="${gluegen.build.sha.classes}"/>
+            <filter token="SHA_CLASSES_THIS" value="${gluegen.build.sha.classes}"/>
+            <filter token="SHA_NATIVES" value="${gluegen.build.sha.natives}"/>
+            <filter token="SHA_NATIVES_THIS" value="${gluegen.build.sha.natives}"/>
+            <filter token="BASEVERSION" value="${jogamp.version.base}"/>
+            <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
+        </filterset>
+    </copy>
 
     <!-- Copy antlr.jar into build directory for convenience so
          gluegen.jar can be run via "java -jar". antlr.jar is
@@ -890,6 +1005,7 @@
 
   <target name="gluegen.build.android" if="android-jars.available">
     <!--compile gluegen-rt-android last-->
+    <!-- This has a hard Java8 target spec requirement: source, target + bootclasspath -->
     <javac destdir="${classes}"
            includeAntRuntime="false"
            includes="${gluegen-rt.classes} ${jogamp.common.classes}"
@@ -904,7 +1020,28 @@
       <src path="${src.generated.java}" />
       <classpath refid="cc_gluegen_android.classpath" />
     </javac>
+  </target>
+  
+  <target name="gluegen.package.android" if="android-jars.available">
+    <java classname="com.jogamp.common.util.SHASum" logError="true" failonerror="true" fork="true" newenvironment="true"
+          classpath="${classes}"
+          outputproperty="gluegen.build.sha.classes.gluegen-rt-android">
+        <sysproperty key="java.library.path" value="${gluegen.lib.dir}"/>
 
+        <arg value="--include"/>
+        <arg value="${classes.unix}/com/jogamp/gluegen/runtime/.*\.class" />
+        <arg value="--include"/>
+        <arg value="${classes.unix}/com/jogamp/common/.*" />
+        <arg value="--include"/>
+        <arg value="${classes.unix}/jogamp/common/.*" />
+
+        <arg value="--exclude"/>
+        <arg value="${classes.unix}/jogamp/android/launcher"/>
+        <arg value="--exclude"/>
+        <arg value="${classes.unix}/com/jogamp/gluegen/jcpp" />
+
+        <arg value="${classes.unix}"/>
+    </java>
     <copy file="Manifest-rt-android"
           tofile="${build}/Manifest-rt-android.temp"
           overwrite="true">
@@ -913,6 +1050,11 @@
             <filter token="BUILD_VERSION" value="${gluegen.version}"/>
             <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
             <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
+            <filter token="SHA_SOURCES" value="${gluegen.build.sha.sources}"/>
+            <filter token="SHA_CLASSES" value="${gluegen.build.sha.classes}"/>
+            <filter token="SHA_CLASSES_THIS" value="${gluegen.build.sha.classes.gluegen-rt-android}"/>
+            <filter token="SHA_NATIVES" value="${gluegen.build.sha.natives}"/>
+            <filter token="SHA_NATIVES_THIS" value="0"/>
             <filter token="BASEVERSION" value="${jogamp.version.base}"/>
             <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
         </filterset>
@@ -926,6 +1068,7 @@
         <include name="jogamp/common/**" />
         <include name="${java.part.android}" />
         <exclude name="${jogamp-android-launcher.classes}" />
+        <exclude name="${java.part.jcpp}" />
       </fileset>
       <fileset dir="resources/assets">
         <include name="**" />
@@ -933,11 +1076,60 @@
     </jar>
   </target>
   
-  <target name="gluegen.build.java" depends="gluegen.cpptasks.detect.os,gluegen.build.check.java" unless="gluegen.build.skip.java">
+  <target name="gluegen.build.java" depends="gluegen.build.java.impl">
+      <condition property="gluegen.package.java.done" value="true">
+        <isset property="gluegen.build.skip.java"/>
+      </condition>
+  </target>
+  <target name="gluegen.build.java.impl" depends="gluegen.cpptasks.detect.os,gluegen.build.check.java" unless="gluegen.build.skip.java">
+    <echo message="clearing gluegen.build.shasum.done (1) - was ${gluegen.build.shasum.done}"/>
+    <var name="gluegen.build.shasum.done" unset="true"/>
+    <var name="gluegen.package.java.done" unset="true"/>
     <antcall target="generate-hash-maps"        inheritRefs="true"/>
     <antcall target="generate-primitive-stacks" inheritRefs="true"/>
     <antcall target="gluegen.build.javase"      inheritRefs="true"/>
     <antcall target="gluegen.build.android"     inheritRefs="true"/>
+  </target>
+
+  <target name="gluegen.build.shasum" depends="gluegen.cpptasks.detect.os" unless="gluegen.build.shasum.done">
+    <property name="gluegen.build.shasum.done" value="true"/>
+    <java classname="com.jogamp.common.util.SHASum" logError="true" failonerror="true" fork="true" newenvironment="true"
+          classpath="${classes}"
+          outputproperty="gluegen.build.sha.sources">
+        <sysproperty key="java.library.path" value="${gluegen.lib.dir}"/>
+        <!-- jvmarg value="-Djogamp.debug.SHASum"/ -->
+
+        <arg value="--exclude"/>
+        <arg value=".*\.log"/>
+
+        <arg value="--exclude"/>
+        <arg value="../make/lib/toolchain"/>
+
+        <arg value="../src"/>
+        <arg value="../jcpp/src"/>
+        <arg value="../make"/>
+    </java>
+    <java classname="com.jogamp.common.util.SHASum" logError="true" failonerror="true" fork="true" newenvironment="true"
+          classpath="${classes}"
+          outputproperty="gluegen.build.sha.classes">
+        <sysproperty key="java.library.path" value="${gluegen.lib.dir}"/>
+        <arg value="${classes.unix}"/>
+    </java>
+    <java classname="com.jogamp.common.util.SHASum" logError="true" failonerror="true" fork="true" newenvironment="true"
+          classpath="${classes}"
+          outputproperty="gluegen.build.sha.natives">
+        <sysproperty key="java.library.path" value="${gluegen.lib.dir}"/>
+        <arg value="${gluegen.lib.dir}/${output.lib.name.os}"/>
+    </java>
+    <echo message="gluegen.build.sha.sources ${gluegen.build.sha.sources}"/>
+    <echo message="gluegen.build.sha.classes ${gluegen.build.sha.classes}"/>
+    <echo message="gluegen.build.sha.natives ${gluegen.build.sha.natives}"/>
+  </target>
+
+  <target name="gluegen.package.java" depends="gluegen.cpptasks.detect.os" unless="gluegen.package.java.done">
+    <property name="gluegen.package.java.done" value="true"/>
+    <antcall target="gluegen.package.javase"      inheritRefs="true"/>
+    <antcall target="gluegen.package.android"     inheritRefs="true"/>
   </target>
 
   <target name="gluegen.build.check.android-launcher" depends="init">
@@ -950,6 +1142,7 @@
   </target>
 
   <target name="android-launcher.build" depends="gluegen.cpptasks.detect.os,gluegen.build.check.android-launcher" if="android-jars.available" unless="gluegen.build.skip.android-launcher">
+    <!-- This has a hard Java8 target spec requirement: source, target + bootclasspath -->
     <javac destdir="${classes}"
            includeAntRuntime="false"
            includes="${jogamp-android-launcher.classes}"
@@ -963,7 +1156,19 @@
       <src path="${src.java}" />
       <classpath refid="android.classpath" />
     </javac>
+  </target>
 
+  <target name="android-launcher.package" depends="android-launcher.build" if="isAndroid" unless="gluegen.build.skip.android-launcher">
+    <java classname="com.jogamp.common.util.SHASum" logError="true" failonerror="true" fork="true" newenvironment="true"
+          classpath="${classes}"
+          outputproperty="gluegen.build.sha.classes.jogamp-android-launcher">
+        <sysproperty key="java.library.path" value="${gluegen.lib.dir}"/>
+
+        <arg value="--include"/>
+        <arg value="${classes.unix}/jogamp/android/launcher/.*"/>
+
+        <arg value="${classes.unix}/jogamp/android/launcher/"/>
+    </java>
     <copy file="Manifest-android-launcher"
           tofile="${build}/Manifest-android-launcher.temp"
           overwrite="true">
@@ -972,6 +1177,11 @@
             <filter token="BUILD_VERSION" value="${gluegen.version}"/>
             <filter token="SCM_BRANCH" value="${gluegen.build.branch}"/>
             <filter token="SCM_COMMIT" value="${gluegen.build.commit}"/>
+            <filter token="SHA_SOURCES" value="${gluegen.build.sha.sources}"/>
+            <filter token="SHA_CLASSES" value="${gluegen.build.sha.classes}"/>
+            <filter token="SHA_CLASSES_THIS" value="${gluegen.build.sha.classes.jogamp-android-launcher}"/>
+            <filter token="SHA_NATIVES" value="${gluegen.build.sha.natives}"/>
+            <filter token="SHA_NATIVES_THIS" value="0"/>
             <filter token="BASEVERSION" value="${jogamp.version.base}"/>
             <filter token="JAR_CODEBASE_TAG" value="${jogamp.jar.codebase}"/>
         </filterset>
@@ -982,9 +1192,6 @@
         <include name="${jogamp-android-launcher.classes}" />
       </fileset>
     </jar>
-  </target>
-
-  <target name="android-launcher.package" depends="android-launcher.build" if="isAndroid" unless="gluegen.build.skip.android-launcher">
     <aapt.signed 
         assetsdir="resources/assets-launcher"
         jarbuilddir="${build}"
@@ -1015,7 +1222,7 @@
         jarbuilddir="${build}"
         jarbasename="gluegen-rt-android"
         nativebuilddir="${gluegen.lib.dir}"
-        nativebasename="gluegen-rt"
+        nativebasename="${output.lib.name}"
         android.abi="${android.abi}"
         androidmanifest.path="resources/android/AndroidManifest-Runtime.xml"
         androidresources.path="resources/android/res"
@@ -1026,17 +1233,32 @@
   </target>
 
   <target name="base.compile" description="Base compile ensuring valid build results w/o tampering the artifacts.properties" 
-                              depends="init, android-launcher.package, gluegen.build.java, gluegen.build.c" />
+                              depends="clean-temp, android-launcher.build, gluegen.build.java, gluegen.build.native, gluegen.build.shasum, gluegen.package.java, gluegen.package.native, android-launcher.package" />
 
-  <target name="all.no_junit" description="Release build" depends="init, base.compile, tag.build, android.package, developer-zip-archive" />
-  <target name="all" description="Release build" depends="init, base.compile, tag.build, junit.compile, android.package, developer-zip-archive" />
+  <target name="all.no_junit" description="Release build" depends="base.compile, tag.build, android.package, developer-zip-archive" >
+      <antcall target="clean-temp" inheritAll="true" inheritRefs="true" />
+  </target>
+  <target name="all" description="Release build" depends="base.compile, tag.build, junit.compile, android.package, developer-zip-archive" >
+      <antcall target="clean-temp" inheritAll="true" inheritRefs="true" />
+  </target>
 
-  <target name="all.debug" description="Debug build" depends="init.debug, base.compile, tag.build, junit.compile, developer-zip-archive" />
+  <target name="all.debug" description="Debug build" depends="init.debug, base.compile, tag.build, junit.compile, developer-zip-archive" >
+      <antcall target="clean-temp" inheritAll="true" inheritRefs="true" />
+  </target>
 
-  <target name="all.ide" description="Debug IDE build including all junit tests, but don't tag the build or create archives" depends="init.debug, base.compile, tag.build, junit.compile" />
+  <target name="all.ide" description="Debug IDE build including all junit tests, but don't tag the build or create archives" depends="init.debug, base.compile, tag.build, junit.compile" >
+      <antcall target="clean-temp" inheritAll="true" inheritRefs="true" />
+  </target>
 
-  <target name="clean" depends="init">
-    <delete includeEmptyDirs="true">
+  <target name="clean-temp" depends="init">
+    <delete includeEmptyDirs="true" failonerror="false">
+      <fileset dir="${project.root}/build-temp" />
+      <fileset dir="${project.root}" includes="make/GnuCTreeParserTokenTypes.txt make/STDCTokenTypes.txt" />
+    </delete>
+  </target>    
+
+  <target name="clean" depends="clean-temp">
+    <delete includeEmptyDirs="true" failonerror="false">
       <fileset dir="${build}" />
     </delete>
   </target>    
@@ -1047,6 +1269,9 @@
     <echo message='gluegen.build.id=${gluegen.build.id}${line.separator}'         file="${build}/artifact.properties" append="true"/>
     <echo message='gluegen.build.branch=${gluegen.build.branch}${line.separator}' file="${build}/artifact.properties" append="true"/>
     <echo message='gluegen.build.commit=${gluegen.build.commit}${line.separator}' file="${build}/artifact.properties" append="true"/>
+    <echo message='gluegen.build.sha.sources=${gluegen.build.sha.sources}${line.separator}' file="${build}/artifact.properties" append="true"/>
+    <echo message='gluegen.build.sha.classes=${gluegen.build.sha.classes}${line.separator}' file="${build}/artifact.properties" append="true"/>
+    <echo message='gluegen.build.sha.natives=${gluegen.build.sha.natives}${line.separator}' file="${build}/artifact.properties" append="true"/>
   </target>
 
   <target name="junit.compile" depends="init">
@@ -1069,9 +1294,12 @@
              source="${target.sourcelevel}"
              maxmemory="${javac.memorymax}"
              stylesheetfile="doc/javadoc/stylesheet.css">
-        <classpath path="${classes}"/>
+        <classpath refid="javadoc_gluegen.classpath" />
         <link offline="true" href="${javadoc.link}" packagelistLoc="142-packages" />
+        <arg value="--frames"/>
         <arg value="${javadoc.xarg1}"/>
+        <arg value="-html5"/>
+        <arg value="--show-packages=all"/>
     </javadoc>
     <copy todir="${javadoc.gluegen.path}/resources" overwrite="true">
         <fileset dir="doc/javadoc/resources" includes="*" />
@@ -1104,12 +1332,12 @@
         <copy todir="${archive}">
             <fileset dir=".."       includes="LICENSE.txt"/>
             <fileset dir="${build}" includes="artifact.properties"/>
-            <fileset dir="${build}" includes="gluegen-java-src.zip"/>
         </copy>
         <mkdir dir="${archive}/jar" />
         <copy todir="${archive}/jar">
             <fileset dir="${build}" includes="gluegen*.jar"/>
             <fileset dir="${build}" includes="*.apk"/>
+            <fileset dir="${build}" includes="gluegen-java-src.zip"/>
         </copy>
         <mkdir dir="${archive}/lib" />
         <copy todir="${archive}/lib">

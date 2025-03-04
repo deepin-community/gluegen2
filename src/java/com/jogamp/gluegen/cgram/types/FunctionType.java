@@ -1,6 +1,6 @@
-/*
+/**
+ * Copyright (c) 2010-2023 JogAmp Community. All rights reserved.
  * Copyright (c) 2003 Sun Microsystems, Inc. All Rights Reserved.
- * Copyright (c) 2010 JogAmp Community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -136,6 +136,80 @@ public class FunctionType extends Type implements Cloneable {
     }
 
     /**
+     * Returns the function parameter list, i.e. a comma separated list of argument type and name.
+     * @param buf StringBuilder instance
+     * @param useTypedef if true and type is typedef'ed, use its name
+     * @param callingConvention optional calling-convention
+     * @return given StringBuilder instance
+     */
+    public StringBuilder getParameterList(final StringBuilder buf, final boolean useTypedef, final String callingConvention) {
+        return getParameterList(buf, useTypedef, callingConvention, null);
+    }
+    /**
+     * Returns the function parameter list, i.e. a comma separated list of argument type and name.
+     * @param buf StringBuilder instance
+     * @param useTypedef if true and type is typedef'ed, use its name
+     * @param callingConvention optional calling-convention
+     * @param exclude optional list of excluded parameter indices
+     * @return given StringBuilder instance
+     */
+    public StringBuilder getParameterList(final StringBuilder buf, final boolean useTypedef, final String callingConvention, final List<Integer> exclude) {
+        forEachParameter( ( final int idx, final int consumedCount, final Type cType, final String name ) -> {
+            if( !cType.isVoid() && ( null == exclude || !exclude.contains(idx) ) ) {
+                if( 0 < consumedCount ) {
+                    buf.append(", ");
+                }
+                if( useTypedef && cType.isTypedef() ) {
+                    buf.append( cType.getName() );
+                    if (name != null) {
+                        buf.append(" ");
+                        buf.append(name);
+                    }
+                } else  if ( cType.isFunctionPointer() ) {
+                    final FunctionType ft = cType.getTargetFunction();
+                    buf.append( ft.toString(name, callingConvention, false, true) );
+                } else if (cType.isArray()) {
+                    buf.append( cType.asArray().toString(name) );
+                } else {
+                    buf.append( cType.getCName(true) );
+                    if (name != null) {
+                        buf.append(" ");
+                        buf.append(name);
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
+        } );
+        return buf;
+    }
+
+    /** {@link #forEachParameter(ParameterConsumer)} Consumer */
+    public static interface ParameterConsumer  {
+        /**
+         * Accept the arguments of the traversed collection element
+         * and return true if consumed. Consumed elements will increased passed `consumedCount` state.
+         * @param idx index of current element, ranges [0 .. size-1]
+         * @param consumedCount number of consumed elements, useful for e.g. `boolean needsSeparator =  0 < consumedCount`
+         * @param cType C Type of argument
+         * @param name argument name
+         * @return true to signal consumed and have traversing loop increment `consumedCount`, otherwise false
+         */
+        boolean accept(int idx, int consumedCount, Type cType, String name);
+    }
+    public int forEachParameter(final ParameterConsumer c) {
+        final int n = getNumArguments();
+        int consumedCount = 0;
+        for (int i = 0; i < n; i++) {
+            if( c.accept(i, consumedCount, getArgumentType(i), getArgumentName(i)) ) {
+                ++consumedCount;
+            }
+        }
+        return consumedCount;
+    }
+
+    /**
      * Add an argument's name and type. Use null for unknown argument names.
      */
     public void addArgument(final Type argumentType, final String argumentName) {
@@ -161,9 +235,12 @@ public class FunctionType extends Type implements Cloneable {
     public String toString(final String functionName, final boolean emitNativeTag) {
         return toString(functionName, null, emitNativeTag, false);
     }
+    public String toString(final String functionName, final boolean emitNativeTag, final boolean isPointer) {
+        return toString(functionName, null, emitNativeTag, isPointer);
+    }
 
-    String toString(final String functionName, final String callingConvention,
-                    final boolean emitNativeTag, final boolean isPointer) {
+    public String toString(final String functionName, final String callingConvention,
+                           final boolean emitNativeTag, final boolean isPointer) {
         final StringBuilder res = new StringBuilder();
         res.append(getReturnType().getCName(true));
         res.append(" ");
@@ -188,27 +265,7 @@ public class FunctionType extends Type implements Cloneable {
             res.append(")");
         }
         res.append("(");
-        final int n = getNumArguments();
-        for (int i = 0; i < n; i++) {
-            final Type t = getArgumentType(i);
-            if (t.isFunctionPointer()) {
-                final Type targetType = t.asPointer().getTargetType();
-                final FunctionType ft = targetType.asFunction();
-                res.append(ft.toString(getArgumentName(i), callingConvention, false, true));
-            } else if (t.isArray()) {
-                res.append(t.asArray().toString(getArgumentName(i)));
-            } else {
-                res.append(t.getCName(true));
-                final String argumentName = getArgumentName(i);
-                if (argumentName != null) {
-                    res.append(" ");
-                    res.append(argumentName);
-                }
-            }
-            if (i < n - 1) {
-                res.append(", ");
-            }
-        }
+        getParameterList(res, true, callingConvention);
         res.append(")");
         return res.toString();
     }

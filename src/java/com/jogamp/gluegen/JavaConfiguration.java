@@ -1,6 +1,6 @@
 /*
+ * Copyright (c) 2010-2023 JogAmp Community. All rights reserved.
  * Copyright (c) 2003 Sun Microsystems, Inc. All Rights Reserved.
- * Copyright (c) 2010 JogAmp Community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -62,6 +62,7 @@ import static com.jogamp.gluegen.JavaEmitter.EmissionStyle.*;
 
 public class JavaConfiguration {
     private int nestedReads;
+    private String libraryOnLoadName;
     private String packageName;
     private String implPackageName;
     private String className;
@@ -138,14 +139,81 @@ public class JavaConfiguration {
     private final Map<String, MethodAccess> accessControl = new HashMap<String, MethodAccess>();
     private final Map<String, TypeInfo> typeInfoMap = new HashMap<String, TypeInfo>();
     private final Set<String> returnsString = new HashSet<String>();
+    private final Set<String> returnsStringOnly = new HashSet<String>();
     private final Map<String, JavaType> returnsOpaqueJType = new HashMap<String, JavaType>();
     private final Map<String, String> returnedArrayLengths = new HashMap<String, String>();
+    private final Set<String> maxOneElement = new HashSet<String>();
+
+    /** Pascal string argument index tuple for length and value. */
+    public static class PascalStringIdx {
+        public final int lengthIndex;
+        public final int valueIndex;
+
+        PascalStringIdx(final int lenIdx, final int valIdx) {
+            lengthIndex = lenIdx;
+            valueIndex = valIdx;
+        }
+
+        public void pushValueIndex(final List<Integer> indices) {
+            indices.add(valueIndex);
+        }
+        public static final List<Integer> pushValueIndex(final List<PascalStringIdx> source, List<Integer> indices) {
+            if( null == indices ) {
+                indices = new ArrayList<Integer>(2);
+            }
+            for(final PascalStringIdx p : source) {
+                p.pushValueIndex(indices);
+            }
+            return indices;
+        }
+
+        @Override
+        public String toString() {
+            return "PascalString[lenIdx "+lengthIndex+", valIdx "+valueIndex+"]";
+        }
+    }
 
     /**
      * Key is function that has some byte[] or short[] arguments that should be
      * converted to String args; value is List of Integer argument indices
      */
     private final Map<String, List<Integer>> argumentsAreString = new HashMap<String, List<Integer>>();
+
+    /**
+     * Key is function that has a pascal string, i.e. length and some byte[] or short[] arguments that should be
+     * converted to String args; value is a list of PascalStringArg
+     */
+    private final Map<String, List<PascalStringIdx>> argumentsArePascalString = new HashMap<String, List<PascalStringIdx>>();
+
+    /** JavaCallback configuration definition (static) */
+    public static class JavaCallbackDef {
+      final String cbFuncTypeName;
+      final int cbFuncUserParamIdx;
+      final String setFuncName;
+      final int setFuncUserParamIdx; // optional
+      final List<Integer> cbFuncKeyIndices = new ArrayList<Integer>();
+      final String userParamClassName; // optional
+      final String customKeyClassName; // optional
+      final List<Integer> setFuncKeyIndices = new ArrayList<Integer>();
+      JavaCallbackDef(final String cbFuncTypeName, final int cbFuncUserParamIdx, final String setFuncName, final int setFuncUserParamIdx,
+                      final String userParamClassName, final String customKeyClassName) {
+          this.cbFuncTypeName = cbFuncTypeName;
+          this.cbFuncUserParamIdx = cbFuncUserParamIdx;
+          this.setFuncName = setFuncName;
+          this.setFuncUserParamIdx = setFuncUserParamIdx;
+          this.userParamClassName = userParamClassName;
+          this.customKeyClassName = customKeyClassName;
+      }
+      @Override
+      public String toString() {
+          return String.format("JavaCallbackDef[cbFunc[type %s, userParamIdx %d, keys %s], set[%s, keys %s, userParamIdx %d], Class[UserParam %s, Key %s]]",
+                  cbFuncTypeName, cbFuncUserParamIdx, cbFuncKeyIndices.toString(), setFuncName, setFuncKeyIndices.toString(), setFuncUserParamIdx,
+                  userParamClassName, customKeyClassName);
+      }
+    }
+    private final List<JavaCallbackDef> javaCallbackList = new ArrayList<JavaCallbackDef>();
+    private final Map<String, JavaCallbackDef> javaCallbackSetFuncToDef = new HashMap<String, JavaCallbackDef>();
+
     private final Set<String> extendedIntfSymbolsIgnore = new HashSet<String>();
     private final Set<String> extendedIntfSymbolsOnly = new HashSet<String>();
     private final Set<String> extendedImplSymbolsIgnore = new HashSet<String>();
@@ -159,11 +227,11 @@ public class JavaConfiguration {
     private final Set<String> useNIOOnly = new HashSet<String>();
     private boolean forceUseNIODirectOnly4All = false;
     private final Set<String> useNIODirectOnly = new HashSet<String>();
+    private final Set<String> immutableAccessSymbols = new HashSet<String>();
     private final Set<String> manuallyImplement = new HashSet<String>();
     private final Map<String, String> delegatedImplementation = new HashMap<String, String>();
-    private final Set<String> manualStaticInitCall = new HashSet<String>();
-    private final Set<String> forceStaticInitCode = new HashSet<String>();
     private final Map<String, List<String>> customJavaCode = new HashMap<String, List<String>>();
+    private final Map<String, List<String>> customJNICode = new HashMap<String, List<String>>();
     private final Map<String, List<String>> classJavadoc = new HashMap<String, List<String>>();
     private final Map<String, List<String>> methodJavadoc = new HashMap<String, List<String>>();
     private final Map<String, String> structPackages = new HashMap<String, String>();
@@ -279,6 +347,11 @@ public class JavaConfiguration {
   }
 
   public void setOutputRootDir(final String s) { outputRootDir=s; }
+
+    /** Returns the library basename used to {@link CCodeUnit#emitJNIOnLoadJNIEnvCode(String)}. */
+    public String libraryOnLoadName() {
+        return libraryOnLoadName;
+    }
 
     /** Returns the package name parsed from the configuration file. */
     public String packageName() {
@@ -403,17 +476,17 @@ public class JavaConfiguration {
     for (int i = 0; i <= pointerDepth; i++) {
       String name = type.getName();
       if (DEBUG_TYPE_INFO) {
-        System.err.println(" Type = " + type);
-        System.err.println(" Name = " + name);
+        System.err.printf(" [%2d] Name = %s%n", i, name);
+        System.err.printf(" [%2d] Type = %s, pointerDepth %d, %s%n", i, type, type.pointerDepth(), type.getDebugString());
       }
       if (name != null) {
         final TypeInfo info = closestTypeInfo(name, i + type.pointerDepth());
         if (info != null) {
           final TypeInfo res = promoteTypeInfo(info, i);
           if (DEBUG_TYPE_INFO) {
-            System.err.println(" [1] info.name=" + info.name() + ", name=" + name +
-                               ", info.pointerDepth=" + info.pointerDepth() +
-                               ", type.pointerDepth=" + type.pointerDepth() + " -> "+res);
+            System.err.printf(" [A][%2d] name %s%n", i, name);
+            System.err.printf(" [A][%2d] info %s%n", i, info.toString());
+            System.err.printf(" [A][%2d] res  %s%n", i, res.toString());
           }
           return res;
         }
@@ -427,9 +500,9 @@ public class JavaConfiguration {
           if (info != null) {
             final TypeInfo res = promoteTypeInfo(info, i);
             if (DEBUG_TYPE_INFO) {
-              System.err.println(" [2] info.name=" + info.name() + ", name=" + name +
-                                 ", info.pointerDepth=" + info.pointerDepth() +
-                                 ", type.pointerDepth=" + type.pointerDepth() + " -> "+res);
+              System.err.printf(" [A][%2d] name %s%n", i, name);
+              System.err.printf(" [A][%2d] info %s%n", i, info.toString());
+              System.err.printf(" [A][%2d] res  %s%n", i, res.toString());
             }
             return res;
           }
@@ -451,11 +524,13 @@ public class JavaConfiguration {
     TypeInfo info = typeInfoMap.get(name);
     TypeInfo closest = null;
     while (info != null) {
-      if (DEBUG_TYPE_INFO)
+      if (DEBUG_TYPE_INFO) {
         System.err.println("  Checking TypeInfo for " + name + " at pointerDepth " + pointerDepth);
+      }
       if (info.pointerDepth() <= pointerDepth && (closest == null || info.pointerDepth() > closest.pointerDepth())) {
-        if (DEBUG_TYPE_INFO)
+        if (DEBUG_TYPE_INFO) {
           System.err.println("   Accepted");
+        }
         closest = info;
       }
       info = info.next();
@@ -465,7 +540,8 @@ public class JavaConfiguration {
 
   // Promotes a TypeInfo to a higher pointer type (if necessary)
   private TypeInfo promoteTypeInfo(final TypeInfo info, final int numPointersStripped) {
-    int diff = numPointersStripped - info.pointerDepth();
+    final int pd = info.pointerDepth();
+    int diff = numPointersStripped - pd;
     if (diff == 0) {
       return info;
     }
@@ -477,7 +553,6 @@ public class JavaConfiguration {
     }
 
     Class<?> c = info.javaType().getJavaClass();
-    final int pd = info.pointerDepth();
 
     // Handle single-pointer stripping for types compatible with C
     // integral and floating-point types specially so we end up
@@ -493,7 +568,7 @@ public class JavaConfiguration {
       else if (c == Double.TYPE)  jt = JavaType.createForCDoublePointer();
 
       if (jt != null)
-        return new TypeInfo(info.name(), pd + numPointersStripped, jt);
+        return new TypeInfo(info.name(), numPointersStripped, jt);
     }
 
     while (diff > 0) {
@@ -520,10 +595,34 @@ public class JavaConfiguration {
              oneInSet(returnsString, symbol.getAliasedNames());
   }
 
+  /** Indicates whether the given function (which returns a
+      <code>char*</code> in C) should be translated as returning a
+      <code>java.lang.String</code> only. Excluding other variants for struct field access. */
+  public boolean returnsStringOnly(final String functionName) {
+    return returnsStringOnly.contains(functionName);
+  }
+
+  /** Returns the list of all configured JavaCallback definitions. */
+  public List<JavaCallbackDef> getJavaCallbackList() {
+    return javaCallbackList;
+  }
+
+  /** Returns the configured JavaCallback definition mapped to the JavaCallback-Set-Function name. */
+  public JavaCallbackDef javaCallbackSetFuncToDef(final AliasedSymbol symbol) {
+      final String name = symbol.getName();
+      final Set<String> aliases = symbol.getAliasedNames();
+
+      JavaCallbackDef res = javaCallbackSetFuncToDef.get(name);
+      if( null == res ) {
+          res = oneInMap(javaCallbackSetFuncToDef, aliases);
+      }
+      return res;
+  }
+
   /**
    * Returns a MessageFormat string of the Java expression calculating
    * the number of elements in the returned array from the specified function
-   * name. The literal <code>1</code> indicates a single object.
+   * name or struct-field array-size. The literal <code>1</code> indicates a constant single object.
    * <p>
    * If symbol references a struct fields, see {@link #canonicalStructFieldSymbol(String, String)},
    * it describes field's array-length or element-count referenced by a pointer.
@@ -535,16 +634,65 @@ public class JavaConfiguration {
    * either {@link #returnValueCapacity(String)} or {@link #returnValueLength(String)}!
    * </p>
    */
-  public String returnedArrayLength(final String functionName) {
-    return returnedArrayLengths.get(functionName);
+  public String returnedArrayLength(final String symbol) {
+    return returnedArrayLengths.get(symbol);
+  }
+
+  /**
+   * Indicates whether the given symbol covers no or one single object.
+   * This is useful for struct-field pointer, indicating a null value
+   * holding no object or at most referincing memory for one single object.
+   */
+  public boolean maxOneElement(final String symbol) {
+    return maxOneElement.contains(symbol);
   }
 
   /** Returns a list of <code>Integer</code>s which are the indices of <code>const char*</code>
       arguments that should be converted to <code>String</code>s. Returns null if there are no
-      such hints for the given function name. */
+      such hints for the given function alias symbol. */
+  public List<Integer> stringArguments(final AliasedSymbol symbol) {
+      final String name = symbol.getName();
+      final Set<String> aliases = symbol.getAliasedNames();
 
-  public List<Integer> stringArguments(final String functionName) {
-    return argumentsAreString.get(functionName);
+      List<Integer> res = argumentsAreString.get(name);
+      if( null == res ) {
+          res = oneInMap(argumentsAreString, aliases);
+          if( null == res ) {
+              return null;
+          }
+      }
+      LOG.log(INFO, getASTLocusTag(symbol), "ArgumentsAreString: {0} -> {1}", symbol, res);
+      return res;
+  }
+
+  /** Returns a list of PascalStringIdx which are tuples of indices of <code>int len, const char*</code>
+      arguments that should be converted to <code>String</code>s. Returns null if there are no
+      such hints for the given function alias symbol. */
+  public List<PascalStringIdx> pascalStringArgument(final AliasedSymbol symbol) {
+      final String name = symbol.getName();
+      final Set<String> aliases = symbol.getAliasedNames();
+
+      List<PascalStringIdx> res = argumentsArePascalString.get(name);
+      if( null == res ) {
+          res = oneInMap(argumentsArePascalString, aliases);
+          if( null == res ) {
+              return null;
+          }
+      }
+      LOG.log(INFO, getASTLocusTag(symbol), "ArgumentIsPascalString: {0} -> {1}", symbol, res);
+      return res;
+  }
+
+  public int pascalStringLengthIndex(final AliasedSymbol symbol, final int valueIndex) {
+      final List<PascalStringIdx> pascals = pascalStringArgument(symbol);
+      if( null != pascals ) {
+          for(final PascalStringIdx p : pascals) {
+              if( valueIndex == p.valueIndex ) {
+                  return p.lengthIndex;
+              }
+          }
+      }
+      return -1;
   }
 
   public boolean isForceUsingNIOOnly4All() { return forceUseNIOOnly4All; }
@@ -571,32 +719,6 @@ public class JavaConfiguration {
     return forceUseNIODirectOnly4All || useNIODirectOnly.contains(functionName);
   }
 
-  /**
-   * Returns true if the static initialization java code calling <code>initializeImpl()</code>
-   * for the given class will be manually implemented by the end user
-   * as requested via configuration directive <code>ManualStaticInitCall 'class-name'</code>.
-   */
-  public boolean manualStaticInitCall(final String clazzName) {
-    return manualStaticInitCall.contains(clazzName);
-  }
-
-  /**
-   * Returns true if the static initialization java code implementing <code>initializeImpl()</code>
-   * and the native code implementing:
-   * <pre>
-   *   static jobject JVMUtil_NewDirectByteBufferCopy(JNIEnv *env, void * source_address, jlong capacity);
-   * </pre>
-   * for the given class will be included in the generated code, always,
-   * as requested via configuration directive <code>ForceStaticInitCode 'class-name'</code>.
-   * <p>
-   * If case above code has been generated, static class initialization is generated
-   * to call <code>initializeImpl()</code>, see {@link #manualStaticInitCall(String)}.
-   * </p>
-   */
-  public boolean forceStaticInitCode(final String clazzName) {
-    return forceStaticInitCode.contains(clazzName);
-  }
-
   /** Returns a list of Strings containing user-implemented code for
       the given Java type name (not fully-qualified, only the class
       name); returns either null or an empty list if there is no
@@ -606,6 +728,19 @@ public class JavaConfiguration {
     if (res == null) {
       res = new ArrayList<String>();
       customJavaCode.put(className, res);
+    }
+    return res;
+  }
+
+  /** Returns a list of Strings containing user-implemented JNI code for
+      the given Java type name (not fully-qualified, only the class
+      name); returns either null or an empty list if there is no
+      custom code for the class. */
+  public List<String> customJNICodeForClass(final String className) {
+    List<String> res = customJNICode.get(className);
+    if (res == null) {
+      res = new ArrayList<String>();
+      customJNICode.put(className, res);
     }
     return res;
   }
@@ -832,6 +967,43 @@ public class JavaConfiguration {
    */
   public static String canonicalStructFieldSymbol(final String structName, final String fieldName) {
       return structName+"."+fieldName;
+  }
+
+  /**
+   * Returns true if the glue code for the given aliased symbol
+   * shall produce code for immutable access only.
+   * <p>
+   * This is implemented for whole struct-type symbols or struct-field names,
+   * where no setter methods will be produced if marked immutable.
+   * </p>
+   */
+  public final boolean immutableAccess(final AliasedSymbol symbol) {
+      final String name = symbol.getName();
+      final Set<String> aliases = symbol.getAliasedNames();
+
+      if ( immutableAccessSymbols.contains( name ) ||
+           oneInSet(immutableAccessSymbols, aliases)
+         )
+      {
+          LOG.log(INFO, getASTLocusTag(symbol), "Immutable access: {0}", symbol);
+          return true;
+      }
+      return false;
+  }
+  /**
+   * Returns true if the glue code for the given symbol
+   * shall produce code for immutable access only.
+   * <p>
+   * This is implemented for whole struct-type symbols or struct-field names,
+   * where no setter methods will be produced if marked immutable.
+   * </p>
+   */
+  public final boolean immutableAccess(final String symbol) {
+      if ( immutableAccessSymbols.contains( symbol ) ) {
+          LOG.log(INFO, "Immutable access: {0}", symbol);
+          return true;
+      }
+      return false;
   }
 
   /**
@@ -1221,8 +1393,10 @@ public class JavaConfiguration {
 
   protected void dispatch(final String cmd, final StringTokenizer tok, final File file, final String filename, final int lineNo) throws IOException {
     //System.err.println("read cmd = [" + cmd + "]");
-    if (cmd.equalsIgnoreCase("Package")) {
-      packageName = readString("package", tok, filename, lineNo);
+    if (cmd.equalsIgnoreCase("LibraryOnLoad")) {
+      libraryOnLoadName = readString("LibraryOnLoad", tok, filename, lineNo);
+    } else if (cmd.equalsIgnoreCase("Package")) {
+      packageName = readString("Package", tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("GlueGenRuntimePackage")) {
       gluegenRuntimePackage = readString("GlueGenRuntimePackage", tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("ImplPackage")) {
@@ -1257,14 +1431,24 @@ public class JavaConfiguration {
       readOpaque(tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("ReturnsString")) {
       readReturnsString(tok, filename, lineNo);
+    } else if (cmd.equalsIgnoreCase("ReturnsStringOnly")) {
+      readReturnsStringOnly(tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("ReturnsOpaque")) {
       readReturnsOpaque(tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("ReturnedArrayLength")) {
       readReturnedArrayLength(tok, filename, lineNo);
       // Warning: make sure delimiters are reset at the top of this loop
       // because ReturnedArrayLength changes them.
+    } else if (cmd.equalsIgnoreCase("MaxOneElement")) {
+      readMaxOneElement(tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("ArgumentIsString")) {
       readArgumentIsString(tok, filename, lineNo);
+    } else if (cmd.equalsIgnoreCase("ArgumentIsPascalString")) {
+      readArgumentIsPascalString(tok, filename, lineNo);
+    } else if (cmd.equalsIgnoreCase("JavaCallbackDef")) {
+      readJavaCallbackDef(tok, filename, lineNo);
+    } else if (cmd.equalsIgnoreCase("JavaCallbackKey")) {
+      readJavaCallbackKey(tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("ExtendedInterfaceSymbolsIgnore")) {
       readExtendedIntfImplSymbols(tok, filename, lineNo, true, false, false);
     } else if (cmd.equalsIgnoreCase("ExtendedInterfaceSymbolsOnly")) {
@@ -1287,18 +1471,20 @@ public class JavaConfiguration {
       readUnimplemented(tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("IgnoreField")) {
       readIgnoreField(tok, filename, lineNo);
+    } else if (cmd.equalsIgnoreCase("ImmutableAccess")) {
+      readImmutableAccess(tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("ManuallyImplement")) {
       readManuallyImplement(tok, filename, lineNo);
-    } else if (cmd.equalsIgnoreCase("ManualStaticInitCall")) {
-      readManualStaticInitCall(tok, filename, lineNo);
-    } else if (cmd.equalsIgnoreCase("ForceStaticInitCode")) {
-      readForceStaticInitCode(tok, filename, lineNo);
     } else if (cmd.equalsIgnoreCase("CustomJavaCode")) {
       readCustomJavaCode(tok, filename, lineNo);
       // Warning: make sure delimiters are reset at the top of this loop
       // because readCustomJavaCode changes them.
     } else if (cmd.equalsIgnoreCase("CustomCCode")) {
       readCustomCCode(tok, filename, lineNo);
+      // Warning: make sure delimiters are reset at the top of this loop
+      // because readCustomJNICode changes them.
+    } else if (cmd.equalsIgnoreCase("CustomJNICode")) {
+      readCustomJNICode(tok, filename, lineNo);
       // Warning: make sure delimiters are reset at the top of this loop
       // because readCustomCCode changes them.
     } else if (cmd.equalsIgnoreCase("MethodJavadoc")) {
@@ -1476,6 +1662,16 @@ public class JavaConfiguration {
     }
   }
 
+  protected void readReturnsStringOnly(final StringTokenizer tok, final String filename, final int lineNo) {
+    try {
+      final String name = tok.nextToken();
+      returnsStringOnly.add(name);
+    } catch (final NoSuchElementException e) {
+      throw new RuntimeException("Error parsing \"ReturnsStringOnly\" command at line " + lineNo +
+        " in file \"" + filename + "\"", e);
+    }
+  }
+
   protected void readReturnedArrayLength(final StringTokenizer tok, final String filename, final int lineNo) {
     try {
       final String functionName = tok.nextToken();
@@ -1486,6 +1682,106 @@ public class JavaConfiguration {
       throw new RuntimeException("Error parsing \"ReturnedArrayLength\" command at line " + lineNo +
         " in file \"" + filename + "\"", e);
     }
+  }
+
+  protected void readMaxOneElement(final StringTokenizer tok, final String filename, final int lineNo) {
+    try {
+      final String name = tok.nextToken();
+      maxOneElement.add(name);
+    } catch (final NoSuchElementException e) {
+      throw new RuntimeException("Error parsing \"MaxOneElement\" command at line " + lineNo +
+        " in file \"" + filename + "\"", e);
+    }
+  }
+
+  protected void readJavaCallbackDef(final StringTokenizer tok, final String filename, final int lineNo) {
+    try {
+      final String setFuncName = tok.nextToken();
+      final int setFuncUserParamIdx = Integer.parseInt(tok.nextToken());
+      final String cbFuncTypeName = tok.nextToken();
+      final int cbFuncUserParamIdx = Integer.parseInt(tok.nextToken());
+      final String userParamClassName;
+      final String customKeyClassName;
+      if( tok.hasMoreTokens() ) {
+          final String s = tok.nextToken();
+          if( s.length() == 0 || s.equals("null") ) {
+              userParamClassName = null;
+          } else {
+              userParamClassName = s;
+          }
+          if( tok.hasMoreTokens() ) {
+              customKeyClassName = tok.nextToken();
+          } else {
+              customKeyClassName = null;
+          }
+      } else {
+          userParamClassName = null;
+          customKeyClassName = null;
+      }
+      final JavaCallbackDef jcd = new JavaCallbackDef(cbFuncTypeName, cbFuncUserParamIdx, setFuncName, setFuncUserParamIdx,
+                                                      userParamClassName, customKeyClassName);
+      javaCallbackList.add(jcd);
+      javaCallbackSetFuncToDef.put(setFuncName, jcd);
+    } catch (final NoSuchElementException e) {
+      throw new RuntimeException("Error parsing \"JavaCallbackDef\" command at line " + lineNo +
+        " in file \"" + filename + "\"", e);
+    }
+  }
+
+  protected void readJavaCallbackKey(final StringTokenizer tok, final String filename, final int lineNo) {
+    try {
+      final String setFuncName = tok.nextToken();
+      final JavaCallbackDef jcd = javaCallbackSetFuncToDef.get(setFuncName);
+      if( null == jcd ) {
+          throw new IllegalArgumentException("JavaCallbackDef '"+setFuncName+"\' not (yet) defined.");
+      }
+
+      // Collect setFuncKeyIndices
+      String stok = null;
+      while( tok.hasMoreTokens() ) {
+          stok = tok.nextToken();
+          if( !isInteger(stok) ) {
+              break;
+          }
+          final int idx = Integer.parseInt(stok);
+          if( 0 > idx ) {
+              throw new IllegalArgumentException("JavaCallbackKey '"+setFuncName+"\' SetCallback-ParamIndex "+idx+" not in range [0..n].");
+          }
+          jcd.setFuncKeyIndices.add( idx );
+      }
+
+      // Validate proper CallbackFuncType
+      if( null == stok ) {
+          throw new IllegalArgumentException("JavaCallbackKey '"+setFuncName+"\': CallbackFuncType missing.");
+      }
+      if( !stok.equals(jcd.cbFuncTypeName) ) {
+          throw new IllegalArgumentException("JavaCallbackKey '"+setFuncName+"\': CallbackFuncType '"+stok+"' not matching JavaCallbackDef: "+jcd);
+      }
+
+      // Collect cbFuncKeyIndices
+      while( tok.hasMoreTokens() ) {
+          final int idx = Integer.parseInt(tok.nextToken());
+          if( 0 > idx ) {
+              throw new IllegalArgumentException("JavaCallbackKey '"+setFuncName+"\' CallbackFunc-ParamIndex "+idx+" not in range [0..n].");
+          }
+          jcd.cbFuncKeyIndices.add( idx );
+      }
+      if( jcd.setFuncKeyIndices.size() != jcd.cbFuncKeyIndices.size() ) {
+          throw new IllegalArgumentException("JavaCallbackKey '"+setFuncName+"\' SetCallback-ParamIndex list count "+jcd.setFuncKeyIndices.toString()+
+                                             " != CallbackFunc-ParamIndex count "+jcd.cbFuncKeyIndices.toString());
+      }
+    } catch (final NoSuchElementException e) {
+      throw new RuntimeException("Error parsing \"JavaCallbackKey\" command at line " + lineNo +
+        " in file \"" + filename + "\"", e);
+    }
+  }
+  private static boolean isInteger(final String s) {
+      try {
+          Integer.parseInt(s);
+          return true;
+      } catch(final Exception e) {
+          return false;
+      }
   }
 
   protected void readExtendedIntfImplSymbols(final StringTokenizer tok, final String filename, final int lineNo, final boolean forInterface, final boolean forImplementation, final boolean onlyList) {
@@ -1512,23 +1808,33 @@ public class JavaConfiguration {
 
     final Set<String> parsedEnumNames = parser.getParsedEnumNames();
     final Set<String> parsedFuncNames = parser.getParsedFunctionNames();
+    final Set<String> parsedInnerInterfaces = parser.getParsedInnerInterfacesNames();
+    final Set<String> parsedInnerClasses = parser.getParsedInnerClassesNames();
 
     if(forInterface) {
         if(onlyList) {
             extendedIntfSymbolsOnly.addAll(parsedEnumNames);
             extendedIntfSymbolsOnly.addAll(parsedFuncNames);
+            extendedIntfSymbolsOnly.addAll(parsedInnerInterfaces);
+            extendedIntfSymbolsOnly.addAll(parsedInnerClasses);
         } else {
             extendedIntfSymbolsIgnore.addAll(parsedEnumNames);
             extendedIntfSymbolsIgnore.addAll(parsedFuncNames);
+            extendedIntfSymbolsIgnore.addAll(parsedInnerInterfaces);
+            extendedIntfSymbolsIgnore.addAll(parsedInnerClasses);
         }
     }
     if(forImplementation) {
         if(onlyList) {
             extendedImplSymbolsOnly.addAll(parsedEnumNames);
             extendedImplSymbolsOnly.addAll(parsedFuncNames);
+            extendedImplSymbolsOnly.addAll(parsedInnerInterfaces);
+            extendedImplSymbolsOnly.addAll(parsedInnerClasses);
         } else {
             extendedImplSymbolsIgnore.addAll(parsedEnumNames);
             extendedImplSymbolsIgnore.addAll(parsedFuncNames);
+            extendedImplSymbolsIgnore.addAll(parsedInnerInterfaces);
+            extendedImplSymbolsIgnore.addAll(parsedInnerClasses);
         }
     }
   }
@@ -1598,30 +1904,22 @@ public class JavaConfiguration {
     }
   }
 
+  protected void readImmutableAccess(final StringTokenizer tok, final String filename, final int lineNo) {
+    try {
+      final String name = tok.nextToken();
+      immutableAccessSymbols.add(name);
+    } catch (final NoSuchElementException e) {
+      throw new RuntimeException("Error parsing \"ImmutableAccess\" command at line " + lineNo +
+        " in file \"" + filename + "\"", e);
+    }
+  }
+
   protected void readManuallyImplement(final StringTokenizer tok, final String filename, final int lineNo) {
     try {
       final String name = tok.nextToken();
       manuallyImplement.add(name);
     } catch (final NoSuchElementException e) {
       throw new RuntimeException("Error parsing \"ManuallyImplement\" command at line " + lineNo +
-        " in file \"" + filename + "\"", e);
-    }
-  }
-  protected void readManualStaticInitCall(final StringTokenizer tok, final String filename, final int lineNo) {
-    try {
-      final String name = tok.nextToken();
-      manualStaticInitCall.add(name);
-    } catch (final NoSuchElementException e) {
-      throw new RuntimeException("Error parsing \"ManualStaticInitCall\" command at line " + lineNo +
-        " in file \"" + filename + "\"", e);
-    }
-  }
-  protected void readForceStaticInitCode(final StringTokenizer tok, final String filename, final int lineNo) {
-    try {
-      final String name = tok.nextToken();
-      forceStaticInitCode.add(name);
-    } catch (final NoSuchElementException e) {
-      throw new RuntimeException("Error parsing \"ForceStaticInitCode\" command at line " + lineNo +
         " in file \"" + filename + "\"", e);
     }
   }
@@ -1653,6 +1951,26 @@ public class JavaConfiguration {
     } catch (final NoSuchElementException e) {
       customCCode.add("");
     }
+  }
+
+  protected void readCustomJNICode(final StringTokenizer tok, final String filename, final int lineNo) {
+    try {
+      final String tokenClassName = tok.nextToken();
+      try {
+        final String restOfLine = tok.nextToken("\n\r\f");
+        addCustomJNICode(tokenClassName, restOfLine);
+      } catch (final NoSuchElementException e) {
+        addCustomJNICode(tokenClassName, "");
+      }
+    } catch (final NoSuchElementException e) {
+      throw new RuntimeException("Error parsing \"CustomJNICode\" command at line " + lineNo +
+              " in file \"" + filename + "\"", e);
+    }
+  }
+
+  protected void addCustomJNICode(final String className, final String code) {
+    final List<String> codeList = customJNICodeForClass(className);
+    codeList.add(code);
   }
 
   protected void readMethodJavadoc(final StringTokenizer tok, final String filename, final int lineNo) {
@@ -1733,6 +2051,25 @@ public class JavaConfiguration {
     } catch (final NoSuchElementException e) {
       throw new RuntimeException(
         "Error parsing \"ArgumentIsString\" command at line " + lineNo +
+        " in file \"" + filename + "\"", e);
+    }
+  }
+
+  protected void readArgumentIsPascalString(final StringTokenizer tok, final String filename, final int lineNo) {
+    try {
+      final String methodName = tok.nextToken();
+      final List<PascalStringIdx> pascalTuples = new ArrayList<PascalStringIdx>(2);
+      while (tok.countTokens() >= 2) {
+          final int lenIdx = Integer.valueOf(tok.nextToken()).intValue();
+          final int valIdx = Integer.valueOf(tok.nextToken()).intValue();
+          pascalTuples.add(new PascalStringIdx(lenIdx, valIdx));
+      }
+      if( pascalTuples.size() > 0 ) {
+          argumentsArePascalString.put(methodName, pascalTuples);
+      }
+    } catch (final NoSuchElementException e) {
+      throw new RuntimeException(
+        "Error parsing \"ArgumentIsPascalString\" command at line " + lineNo +
         " in file \"" + filename + "\"", e);
     }
   }
@@ -2077,4 +2414,124 @@ public class JavaConfiguration {
     }
     return true;
   }
+
+  /**
+   * JavaCallback compile time information, produced by {@link JavaEmitter#beginFunctions(TypeDictionary, TypeDictionary, Map)}
+   * from {@link Type#isFunctionPointer() function-pointer} {@link Type}s mapped to {@link JavaConfiguration#getJavaCallbackList()} names via {@link TypeDictionary} (typedef).
+   * @see JavaConfiguration#funcPtrTypeToJavaCallbackMap
+   * @see JavaConfiguration#setFuncToJavaCallbackMap
+   */
+  public static class JavaCallbackInfo {
+      final String cbFuncTypeName;
+      final String cbSimpleClazzName;
+      final String cbFQClazzName;
+      final String staticCBMethodSignature;
+      final FunctionType cbFuncType;
+      final MethodBinding cbFuncBinding;
+      final List<Integer> cbFuncKeyIndices;
+      final int cbFuncUserParamIdx;
+      final String cbFuncUserParamName;
+      final Type cbFuncUserParamType;
+
+      final boolean cbUserParamIsDefined;
+
+      final String setFuncName;
+      final List<Integer> setFuncKeyIndices;
+      final int setFuncUserParamIdx;
+      final String userParamClassName; // optional
+      final String customKeyClassName; // optional
+      boolean setFuncProcessed;
+      int setFuncCBParamIdx;
+      boolean keyClassEmitted;
+
+      public JavaCallbackInfo(final String cbFuncTypeName, final String cbSimpleClazzName, final String cbFQClazzName, final String staticCBMethodSignature,
+                              final FunctionType cbFuncType, final MethodBinding cbFuncBinding, final int cbFuncUserParamIdx, final List<Integer> cbFuncKeyIndices,
+                              final String setFuncName, final int setFuncUserParamIdx, final List<Integer> setFuncKeyIndices,
+                              final String userParamClassName, final String customKeyClassName) {
+          this.cbFuncTypeName = cbFuncTypeName;
+          this.cbSimpleClazzName = cbSimpleClazzName;
+          this.cbFQClazzName = cbFQClazzName;
+          this.staticCBMethodSignature = staticCBMethodSignature;
+          this.cbFuncType = cbFuncType;
+          this.cbFuncBinding = cbFuncBinding;
+          this.cbUserParamIsDefined = setFuncUserParamIdx >= 0;
+          if( cbUserParamIsDefined ) {
+              int paramIdx = -2;
+              Type paramType = null;
+              String paramName = null;
+              if( 0 <= cbFuncUserParamIdx && cbFuncUserParamIdx < cbFuncType.getNumArguments() ) {
+                  final Type t = cbFuncType.getArgumentType(cbFuncUserParamIdx);
+                  if( null != t && t.isPointer() ) {
+                      // OK '<something>*'
+                      paramIdx = cbFuncUserParamIdx;
+                      paramName = cbFuncType.getArgumentName(cbFuncUserParamIdx);
+                      paramType = t.getTargetType();
+                  }
+              }
+              this.cbFuncUserParamIdx = paramIdx;
+              this.cbFuncUserParamName = paramName;
+              this.cbFuncUserParamType = paramType;
+          } else {
+              this.cbFuncUserParamIdx = -1;
+              this.cbFuncUserParamName = null;
+              this.cbFuncUserParamType = null;
+          }
+          this.cbFuncKeyIndices = cbFuncKeyIndices;
+          this.setFuncName = setFuncName;
+          this.setFuncKeyIndices = setFuncKeyIndices;
+          this.setFuncUserParamIdx = setFuncUserParamIdx;
+          this.userParamClassName = userParamClassName;
+          this.customKeyClassName = customKeyClassName;
+          this.setFuncProcessed = false;
+          this.setFuncCBParamIdx = -1;
+          this.keyClassEmitted = false;
+      }
+      private void validateKeyIndices(final FunctionType setFuncType) {
+          if( this.cbFuncKeyIndices.size() != this.setFuncKeyIndices.size() ) {
+              throw new IllegalArgumentException("JavaCallback "+setFuncName+": Key count mismatch: setFunc "+setFuncKeyIndices.toString()+
+                      " != cbFunc "+cbFuncKeyIndices.toString());
+          }
+          for(int i=0; i< this.cbFuncKeyIndices.size(); ++i) {
+              final int cbFuncIdx = this.cbFuncKeyIndices.get(i);
+              final Type t1 = this.cbFuncType.getArgumentType(cbFuncIdx);
+              final int setFuncIdx = this.setFuncKeyIndices.get(i);
+              final Type t2 = setFuncType.getArgumentType(setFuncIdx);
+              if( !t1.equals(t2) ) {
+                  throw new IllegalArgumentException("JavaCallback "+setFuncName+": Key Type mismatch: setFunc#"+setFuncIdx+" with "+t2.toString()+", cbFunc#"+cbFuncIdx+" with "+t1.toString());
+              }
+          }
+      }
+
+      public void setFuncProcessed(final FunctionType setFuncType, final int cbParamIdx) {
+        if( !setFuncProcessed ) {
+            if( 0 <= cbParamIdx ) {
+                setFuncProcessed = true;
+                setFuncCBParamIdx = cbParamIdx;
+                validateKeyIndices(setFuncType);
+            } else {
+                setFuncCBParamIdx = -1;
+            }
+        }
+      }
+
+      @Override
+      public String toString() {
+          return String.format("JavaCallbackInfo[cbFunc[%s%s, userParam[defined %b, idx %d, '%s', %s, keys %s], set[%s(ok %b, cbIdx %d, upIdx %d, keys %s], Class[UserParam '%s', Key '%s'], %s]",
+                  cbFuncTypeName, staticCBMethodSignature,
+                  cbUserParamIsDefined, cbFuncUserParamIdx, cbFuncUserParamName, cbUserParamIsDefined ? cbFuncUserParamType.getSignature(null).toString() : null, cbFuncKeyIndices.toString(),
+                  setFuncName, setFuncProcessed, setFuncCBParamIdx, setFuncUserParamIdx,
+                  setFuncKeyIndices.toString(), userParamClassName, customKeyClassName,
+                  cbFuncType.toString(cbFuncTypeName, false, true));
+      }
+  }
+  /** Mapped binding name to {@link JavaCallbackInfo} */
+  /* pp */ final Map<String, JavaCallbackInfo> setFuncToJavaCallbackMap = new HashMap<String, JavaCallbackInfo>();
+  final Set<String> emittedJavaCallbackUserParamClasses = new HashSet<String>();
+
+  /** Returns true if a method binding requires specific java callback code */
+  final boolean requiresJavaCallbackCode(final String bindingName) {
+      final JavaCallbackInfo jcbi = setFuncToJavaCallbackMap.get(bindingName);
+      return null != jcbi;
+  }
+
 }

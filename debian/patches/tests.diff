@@ -1,64 +1,67 @@
 Description: enable testcases build and run.
  One testcase can't build because of missing up to date semver-java:
  - TestVersionSemantics
- Three testcases fail on every arch while the library seems functional:
+ Four testcases fail on every arch while the library seems functional:
  - TestUri99LaunchOnReservedCharPathBug908
  - TestStructGen01
  - TestStructGen02.
+ - TestVersionInfo.
+ Also, indicating the path to the guava jar in the build file.
 Author: Gilles Filippini <pini@debian.org>
-Index: gluegen2/make/build-test.xml
-===================================================================
---- gluegen2.orig/make/build-test.xml
-+++ gluegen2/make/build-test.xml
-@@ -84,6 +84,7 @@
-             <pathelement location="${junit.jar}" />
+Forwarded: sgothel@jausoft.com
+Last-Update: 2023-03-15
+
+--- a/make/build-test.xml
++++ b/make/build-test.xml
+@@ -37,7 +37,7 @@
+         <property name="test.junit.generation.dir" value="${test.base.dir}/${test.junit.generation.rel}" />
+ 
+         <property name="test.jcpp.base.dir" value="${project.root}/jcpp/src/test/java" />
+-        <property name="test.jcpp.guava.jar"  value="${project.root}/jcpp/lib/guava-32.1.2-jre.jar" />
++        <property name="test.jcpp.guava.jar"  value="/usr/share/java/guava.jar" />
+ 
+         <property name="tempdir"      value="${project.root}/build-temp" />
+         <property name="build"        location="${project.root}/${rootrel.build}" />
+@@ -85,6 +85,7 @@
              <pathelement location="${semver.jar}" />
+             <pathelement location="${junit.jar}" />
              <pathelement location="${gluegen.jar}" />
 +            <pathelement location="/usr/share/java/jsr305.jar" />
          </path>
- 
-         <path id="junit.run.classpath">
-Index: gluegen2/make/scripts/runtest.sh
-===================================================================
---- gluegen2.orig/make/scripts/runtest.sh
-+++ gluegen2/make/scripts/runtest.sh
-@@ -42,7 +42,7 @@ rm -f $LOG
- GLUEGEN_ROOT=`dirname $builddir`
- ROOTREL_BUILD=`basename $builddir`
+         <path id="jcpp.junit.compile.classpath">
+             <pathelement location="${semver.jar}" />
+--- a/make/scripts/runtest.sh
++++ b/make/scripts/runtest.sh
+@@ -47,7 +47,7 @@
+ # MODULE_ARGS="--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.desktop/sun.awt=ALL-UNNAMED --add-opens java.desktop/sun.java2d=ALL-UNNAMED"
+ MODULE_ARGS="--add-opens java.desktop/sun.awt=ALL-UNNAMED --add-opens java.desktop/sun.java2d=ALL-UNNAMED"
  
 -X_ARGS="-Drootrel.build=$ROOTREL_BUILD -Dgluegen.root=$GLUEGEN_ROOT"
 +X_ARGS="-Drootrel.build=$ROOTREL_BUILD -Dgluegen.root=$GLUEGEN_ROOT -Djava.library.path=$builddir/obj:$builddir/test/build/natives"
+ 
  #D_ARGS="-Djogamp.debug.ProcAddressHelper -Djogamp.debug.NativeLibrary -Djogamp.debug.NativeLibrary.Lookup"
  #D_ARGS="-Djogamp.debug.TraceLock"
- #D_ARGS="-Djogamp.debug.Platform -Djogamp.debug.NativeLibrary"
-@@ -64,12 +64,12 @@ X_ARGS="-Drootrel.build=$ROOTREL_BUILD -
- #D_ARGS="-Djogamp.debug.IOUtil -Djogamp.debug.IOUtil.Exe"
- #D_ARGS="-Djogamp.debug.ByteBufferInputStream"
- #D_ARGS="-Djogamp.debug.Bitstream"
--#D_ARGS="-Djogamp.debug=all"
-+D_ARGS="-Djogamp.debug=all"
- #D_ARGS="-Djogamp.debug.Logging"
+@@ -79,7 +79,7 @@
  
  function onetest() {
-     #USE_CLASSPATH=lib/junit.jar:$ANT_JARS:lib/semantic-versioning/semver.jar:"$builddir"/../make/lib/TestJarsInJar.jar:"$builddir"/gluegen-rt.jar:"$builddir"/gluegen.jar:"$builddir"/gluegen-test-util.jar:"$builddir"/test/build/gluegen-test.jar
--    USE_CLASSPATH=lib/junit.jar:$ANT_JARS:lib/semantic-versioning/semver.jar:"$builddir"/../make/lib/TestJarsInJar.jar:"$builddir"/gluegen-rt.jar:"$builddir"/gluegen.jar:"$builddir"/gluegen-test-util.jar:"$builddir"/test/build/gluegen-test.jar:"$builddir"/gluegen-rt-natives.jar
-+    USE_CLASSPATH=/usr/share/java/junit4.jar:$ANT_JARS:lib/semantic-versioning/semver.jar:"$builddir"/../test/TestJarsInJar/TestJarsInJar.jar:"$builddir"/gluegen-rt.jar:"$builddir"/gluegen.jar:"$builddir"/gluegen-test-util.jar:"$builddir"/test/build/gluegen-test.jar:"$builddir"/gluegen-rt-natives.jar
-     #USE_CLASSPATH=lib/junit.jar:$ANT_JARS:lib/semantic-versioning/semver.jar:"$builddir"/../make/lib/TestJarsInJar.jar:"$builddir"/gluegen-rt-alt.jar:"$builddir"/gluegen.jar:"$builddir"/gluegen-test-util.jar:"$builddir"/test/build/gluegen-test.jar
-     libspath="$builddir"/test/build/natives
-     #USE_CLASSPATH=lib/junit.jar:$ANT_JARS:"$builddir"/../make/lib/TestJarsInJar.jar:"$builddir"/classes:"$builddir"/test/build/classes
-@@ -88,66 +88,68 @@ function onetest() {
+     #USE_CLASSPATH=lib/junit.jar:$ANT_JARS:lib/semantic-versioning/semver.jar:"$builddir"/../make/lib/TestJarsInJar.jar:"$builddir"/gluegen-rt.jar:"$builddir"/gluegen.jar:"$builddir"/gluegen-test-util.jar:"$builddir"/test/build/gluegen-test.jar:../jcpp/lib/guava-32.1.2-jre.jar
+-    USE_CLASSPATH=lib/junit.jar:$ANT_JARS:lib/semantic-versioning/semver.jar:"$builddir"/../make/lib/TestJarsInJar.jar:"$builddir"/gluegen-rt.jar:"$builddir"/gluegen.jar:"$builddir"/gluegen-test-util.jar:"$builddir"/test/build/gluegen-test.jar:"$builddir"/gluegen-rt-natives.jar:../jcpp/lib/guava-32.1.2-jre.jar
++    USE_CLASSPATH=/usr/share/java/junit4.jar:$ANT_JARS:lib/semantic-versioning/semver.jar:"$builddir"/../test/TestJarsInJar/TestJarsInJar.jar:"$builddir"/gluegen-rt.jar:"$builddir"/gluegen.jar:"$builddir"/gluegen-test-util.jar:"$builddir"/test/build/gluegen-test.jar:"$builddir"/gluegen-rt-natives.jar:/usr/share/java/guava.jar
+     #USE_CLASSPATH=lib/junit.jar:$ANT_JARS:lib/semantic-versioning/semver.jar:"$builddir"/../make/lib/TestJarsInJar.jar:"$builddir"/gluegen-rt-alt.jar:"$builddir"/gluegen.jar:"$builddir"/gluegen-test-util.jar:"$builddir"/test/build/gluegen-test.jar:../jcpp/lib/guava-32.1.2-jre.jar
+     #USE_CLASSPATH=lib/junit.jar:$ANT_JARS:"$builddir"/../make/lib/TestJarsInJar.jar:"$builddir"/classes:"$builddir"/test/build/classes:../jcpp/lib/guava-32.1.2-jre.jar
+     #libspath="${builddirAbs}"/test/build/natives
+@@ -99,77 +99,79 @@
      echo
  }
  #
-+(cd $builddir/../test/TestJarsInJar && sh make.sh)
-+#
 -#onetest com.jogamp.common.GlueGenVersion 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.util.TestSystemPropsAndEnvs 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.util.TestVersionInfo 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.util.TestVersionNumber 2>&1 | tee -a $LOG
++(cd $builddir/../test/TestsJarsInJar && sh make.sh)
++#
 +onetest com.jogamp.common.GlueGenVersion 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.TestSystemPropsAndEnvs 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.util.TestVersionInfo 2>&1 | tee -a $LOG
+ #onetest com.jogamp.common.util.TestVersionInfo 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.util.TestVersionNumber 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.TestVersionNumber 2>&1 | tee -a $LOG
  #onetest com.jogamp.common.util.TestVersionSemantics 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.util.TestIteratorIndexCORE 2>&1 | tee -a $LOG
@@ -71,11 +74,13 @@ Index: gluegen2/make/scripts/runtest.sh
 -#onetest com.jogamp.common.util.TestIntegerStack01 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.util.TestArrayHashSet01 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.util.TestArrayHashMap01 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.util.IntIntHashMapTest 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.util.IntObjectHashMapTest 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.util.LongIntHashMapTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.util.TestIntIntHashMap 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.util.TestIntObjectHashMap 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.util.TestLongIntHashMap 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.util.TestPlatform01 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.util.TestRunnableTask01 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.util.TestIOUtil01 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.util.TestTempJarCache 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.TestIteratorIndexCORE 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.locks.TestRecursiveLock01 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.locks.TestRecursiveThreadGroupLock01 2>&1 | tee -a $LOG
@@ -86,14 +91,14 @@ Index: gluegen2/make/scripts/runtest.sh
 +onetest com.jogamp.common.util.TestIntegerStack01 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.TestArrayHashSet01 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.TestArrayHashMap01 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.util.IntIntHashMapTest 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.util.IntObjectHashMapTest 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.util.LongIntHashMapTest 2>&1 | tee -a $LOG
++onetest com.jogamp.common.util.TestIntIntHashMap 2>&1 | tee -a $LOG
++onetest com.jogamp.common.util.TestIntObjectHashMap 2>&1 | tee -a $LOG
++onetest com.jogamp.common.util.TestLongIntHashMap 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.TestPlatform01 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.TestRunnableTask01 2>&1 | tee -a $LOG
- onetest com.jogamp.common.util.TestIOUtil01 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.util.TestTempJarCache 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.util.TestJarUtil 2>&1 | tee -a $LOG
++onetest com.jogamp.common.util.TestIOUtil01 2>&1 | tee -a $LOG
++onetest com.jogamp.common.util.TestTempJarCache 2>&1 | tee -a $LOG
+ #onetest com.jogamp.common.util.TestJarUtil 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.util.TestValueConversion 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.util.TestSyncRingBuffer01 $*
 -#onetest com.jogamp.common.util.TestLFRingBuffer01 $*
@@ -108,21 +113,6 @@ Index: gluegen2/make/scripts/runtest.sh
 -#onetest com.jogamp.common.net.TestUri01 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.net.TestUri02Composing 2>&1 | tee -a $LOG
 -#onetest com.jogamp.common.net.TestUri03Resolving 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.net.TestUri99LaunchOnReservedCharPathBug908 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.net.AssetURLConnectionUnregisteredTest 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.net.AssetURLConnectionRegisteredTest 2>&1 | tee -a $LOG
--#onetest com.jogamp.junit.sec.TestSecIOUtil01 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.nio.BuffersTest 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.nio.TestBuffersFloatDoubleConversion 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.nio.TestPointerBufferEndian 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.nio.TestStructAccessorEndian 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.nio.TestByteBufferInputStream 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.nio.TestByteBufferOutputStream 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.nio.TestByteBufferCopyStream 2>&1 | tee -a $LOG
--#onetest com.jogamp.common.os.TestElfReader01 $* 2>&1 | tee -a $LOG
--#onetest com.jogamp.gluegen.test.junit.internals.TestType 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.util.TestTempJarCache 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.util.TestJarUtil 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.TestValueConversion 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.util.TestSyncRingBuffer01 $*
 +onetest com.jogamp.common.util.TestLFRingBuffer01 $*
@@ -137,11 +127,23 @@ Index: gluegen2/make/scripts/runtest.sh
 +onetest com.jogamp.common.net.TestUri01 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.net.TestUri02Composing 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.net.TestUri03Resolving 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.net.TestUri99LaunchOnReservedCharPathBug908 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.net.AssetURLConnectionUnregisteredTest 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.net.AssetURLConnectionRegisteredTest 2>&1 | tee -a $LOG
+ #onetest com.jogamp.common.net.TestUri99LaunchOnReservedCharPathBug908 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.net.TestAssetURLConnectionUnregistered 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.net.TestAssetURLConnectionRegistered 2>&1 | tee -a $LOG
+-#onetest com.jogamp.junit.sec.TestSecIOUtil01 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.nio.TestBuffers 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.nio.TestBuffersFloatDoubleConversion 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.nio.TestPointerBufferEndian 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.nio.TestStructAccessorEndian 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.nio.TestByteBufferInputStream 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.nio.TestByteBufferOutputStream 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.nio.TestByteBufferCopyStream 2>&1 | tee -a $LOG
+-#onetest com.jogamp.common.os.TestElfReader01 $* 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.test.junit.internals.TestType 2>&1 | tee -a $LOG
++onetest com.jogamp.common.net.TestAssetURLConnectionUnregistered 2>&1 | tee -a $LOG
++onetest com.jogamp.common.net.TestAssetURLConnectionRegistered 2>&1 | tee -a $LOG
 +onetest com.jogamp.junit.sec.TestSecIOUtil01 2>&1 | tee -a $LOG
-+onetest com.jogamp.common.nio.BuffersTest 2>&1 | tee -a $LOG
++onetest com.jogamp.common.nio.TestBuffers 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.nio.TestBuffersFloatDoubleConversion 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.nio.TestPointerBufferEndian 2>&1 | tee -a $LOG
 +onetest com.jogamp.common.nio.TestStructAccessorEndian 2>&1 | tee -a $LOG
@@ -151,25 +153,45 @@ Index: gluegen2/make/scripts/runtest.sh
 +onetest com.jogamp.common.os.TestElfReader01 $* 2>&1 | tee -a $LOG
 +onetest com.jogamp.gluegen.test.junit.internals.TestType 2>&1 | tee -a $LOG
  
--#onetest com.jogamp.gluegen.test.junit.generation.PCPPTest 2>&1 | tee -a $LOG
--#onetest com.jogamp.gluegen.jcpp.IncludeAbsoluteTest 2>&1 | tee -a $LOG
+ onetest com.jogamp.gluegen.test.junit.generation.TestJCPP $* 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.test.junit.generation.TestCParser $* 2>&1 | tee -a $LOG
 -#onetest com.jogamp.gluegen.jcpp.CppReaderTest 2>&1 | tee -a $LOG
--#onetest com.jogamp.gluegen.jcpp.TokenPastingWhitespaceTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.jcpp.ErrorTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.jcpp.IncludeAbsoluteTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.jcpp.JavaFileSystemTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.jcpp.JoinReaderTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.jcpp.LexerSourceTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.jcpp.NumericValueTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.jcpp.PragmaTest 2>&1 | tee -a $LOG
 -#onetest com.jogamp.gluegen.jcpp.PreprocessorTest 2>&1 | tee -a $LOG
-+onetest com.jogamp.gluegen.test.junit.generation.PCPPTest 2>&1 | tee -a $LOG
-+onetest com.jogamp.gluegen.jcpp.IncludeAbsoluteTest 2>&1 | tee -a $LOG
-+onetest com.jogamp.gluegen.jcpp.CppReaderTest 2>&1 | tee -a $LOG
-+onetest com.jogamp.gluegen.jcpp.TokenPastingWhitespaceTest 2>&1 | tee -a $LOG
-+onetest com.jogamp.gluegen.jcpp.PreprocessorTest 2>&1 | tee -a $LOG
- 
+-#onetest com.jogamp.gluegen.jcpp.RegressionTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.jcpp.TokenPastingWhitespaceTest 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.jcpp.VaArgsPastingTest 2>&1 | tee -a $LOG
+-
+-
 -#onetest com.jogamp.gluegen.test.junit.generation.Test1p1JavaEmitter 2>&1 | tee -a $LOG
 -#onetest com.jogamp.gluegen.test.junit.generation.Test1p2ProcAddressEmitter 2>&1 | tee -a $LOG
 -#onetest com.jogamp.gluegen.test.junit.generation.Test1p2LoadJNIAndImplLib 2>&1 | tee -a $LOG
--#onetest com.jogamp.gluegen.test.junit.structgen.TestStructGen01 2>&1 | tee -a $LOG
--#onetest com.jogamp.gluegen.test.junit.structgen.TestStructGen02 2>&1 | tee -a $LOG
+-#onetest com.jogamp.gluegen.test.junit.generation.Test1p2DynamicLibraryBundle 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.test.junit.generation.TestCParser $* 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.CppReaderTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.ErrorTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.IncludeAbsoluteTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.JavaFileSystemTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.JoinReaderTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.LexerSourceTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.NumericValueTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.PragmaTest 2>&1 | tee -a $LOG
++netest com.jogamp.gluegen.jcpp.PreprocessorTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.RegressionTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.TokenPastingWhitespaceTest 2>&1 | tee -a $LOG
++onetest com.jogamp.gluegen.jcpp.VaArgsPastingTest 2>&1 | tee -a $LOG
++
++
 +onetest com.jogamp.gluegen.test.junit.generation.Test1p1JavaEmitter 2>&1 | tee -a $LOG
 +onetest com.jogamp.gluegen.test.junit.generation.Test1p2ProcAddressEmitter 2>&1 | tee -a $LOG
 +onetest com.jogamp.gluegen.test.junit.generation.Test1p2LoadJNIAndImplLib 2>&1 | tee -a $LOG
-+onetest com.jogamp.gluegen.test.junit.structgen.TestStructGen01 2>&1 | tee -a $LOG
-+onetest com.jogamp.gluegen.test.junit.structgen.TestStructGen02 2>&1 | tee -a $LOG
- 
++onetest com.jogamp.gluegen.test.junit.generation.Test1p2DynamicLibraryBundle 2>&1 | tee -a $LOG
+ #onetest com.jogamp.gluegen.test.junit.generation.Test2p1FuncPtr 2>&1 | tee -a $LOG
+ #onetest com.jogamp.gluegen.test.junit.generation.Test2p2FuncPtr 2>&1 | tee -a $LOG
+ #onetest com.jogamp.gluegen.test.junit.generation.Test3p1PtrStorage 2>&1 | tee -a $LOG

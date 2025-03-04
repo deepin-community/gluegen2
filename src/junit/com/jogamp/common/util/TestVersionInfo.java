@@ -29,19 +29,24 @@
 package com.jogamp.common.util;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.security.NoSuchAlgorithmException;
 import org.junit.Test;
 
 import com.jogamp.common.GlueGenVersion;
 import com.jogamp.junit.util.SingletonJunitCase;
 
+import org.junit.Assert;
 import org.junit.FixMethodOrder;
 import org.junit.runners.MethodSorters;
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class TestVersionInfo extends SingletonJunitCase {
+    static boolean VERBOSE = false;
 
     @Test
-    public void testInfo01() {
+    public void test01Info() {
+        System.err.println(VersionUtil.getPlatformInfo());
         System.err.println("Version Info:");
         System.err.println(GlueGenVersion.getInstance());
         System.err.println("");
@@ -49,8 +54,23 @@ public class TestVersionInfo extends SingletonJunitCase {
         System.err.println(GlueGenVersion.getInstance().getFullManifestInfo(null));
     }
 
+    @Test
+    public void test02ValidateSHA()
+            throws IllegalArgumentException, IOException, URISyntaxException, SecurityException, NoSuchAlgorithmException
+    {
+        final GlueGenVersion info = GlueGenVersion.getInstance();
+        final String shaClassesThis = info.getImplementationSHAClassesThis();
+        System.err.println("SHA CLASSES.this (build-time): "+shaClassesThis);
+
+        final GlueGenVersion.GluGenRTJarSHASum shaSum = new GlueGenVersion.GluGenRTJarSHASum();
+        final byte[] shasum = shaSum.compute(VERBOSE);
+        final String shaClasses = SHASum.toHexString(shasum, null).toString();
+        System.err.println("SHA CLASSES.this (now): "+shaClasses);
+        Assert.assertEquals("SHA not equal", shaClassesThis, shaClasses);
+    }
 
     public static void main(final String args[]) throws IOException {
+        // VERBOSE = true;
         final String tstname = TestVersionInfo.class.getName();
         org.junit.runner.JUnitCore.main(tstname);
     }

@@ -57,7 +57,7 @@ public class Test1p2ProcAddressEmitter extends BaseClass {
     @BeforeClass
     public static void chapter__TestLoadLibrary() throws Exception {
         BindingJNILibLoader.loadBindingtest1p2();
-        dynamicLookupHelper = NativeLibrary.open("test1", Test1p2ProcAddressEmitter.class.getClassLoader(), true);
+        dynamicLookupHelper = NativeLibrary.open("test1", false, false, Test1p2ProcAddressEmitter.class.getClassLoader(), true);
         Assert.assertNotNull("NativeLibrary.open(test1) failed", dynamicLookupHelper);
 
         Bindingtest1p2Impl.resetProcAddressTable(dynamicLookupHelper);
@@ -154,19 +154,32 @@ public class Test1p2ProcAddressEmitter extends BaseClass {
     }
 
     /**
-     * Test compound access read-only
-     */
-    @Test
-    public void chapter12TestStructArrayModelConst() throws Exception {
-        chapter12TestStructArrayModelConst(new Bindingtest1p2Impl());
-    }
-
-    /**
      * Test compound access read-write
      */
     @Test
-    public void chapter13TestStructArrayModelMutable() throws Exception {
-        chapter13TestStructArrayModelMutable(new Bindingtest1p2Impl());
+    public void chapter12TestTKField() throws Exception {
+        chapter12TestTKField(new Bindingtest1p2Impl());
+    }
+
+    /**
+     * Test compound access read-only
+     */
+    @Test
+    public void chapter13TestTKFieldImmutable() throws Exception {
+        chapter13TestTKFieldImmutable(new Bindingtest1p2Impl());
+    }
+
+    @Test
+    public void chapter15TestTKMixed() throws Exception {
+        chapter15TestTKMixed(new Bindingtest1p2Impl());
+    }
+
+    /**
+     * Test Custom JNI Code invocation
+     */
+    @Test
+    public void chapter14TestCustomJNICode() throws Exception {
+        chapter14TestCustomJNICode(new Bindingtest1p2Impl());
     }
 
     /**

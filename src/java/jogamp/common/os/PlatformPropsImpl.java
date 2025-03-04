@@ -6,7 +6,6 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
-import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
 
@@ -23,6 +22,7 @@ import com.jogamp.common.os.Platform.ABIType;
 import com.jogamp.common.os.Platform.CPUFamily;
 import com.jogamp.common.os.Platform.CPUType;
 import com.jogamp.common.os.Platform.OSType;
+import com.jogamp.common.util.SecurityUtil;
 import com.jogamp.common.util.VersionNumber;
 
 /**
@@ -38,16 +38,6 @@ import com.jogamp.common.util.VersionNumber;
 public abstract class PlatformPropsImpl {
     static final boolean DEBUG = Debug.debug("Platform");
 
-    /** Selected {@link Platform.OSType#MACOS} {@link VersionNumber}s. */
-    public static class OSXVersion {
-        /** OSX Tiger, i.e. 10.4.0 */
-        public static final VersionNumber Tiger = new VersionNumber(10,4,0);
-        /** OSX Lion, i.e. 10.7.0 */
-        public static final VersionNumber Lion = new VersionNumber(10,7,0);
-        /** OSX Mavericks, i.e. 10.9.0 */
-        public static final VersionNumber Mavericks = new VersionNumber(10,9,0);
-    }
-
     /**
      * Returns {@code true} if the given {@link CPUType}s and {@link ABIType}s are compatible.
      */
@@ -58,15 +48,6 @@ public abstract class PlatformPropsImpl {
     //
     // static initialization order:
     //
-
-    /** Version 1.6. As a JVM version, it enables certain JVM 1.6 features. */
-    public static final VersionNumber Version16;
-    /** Version 1.7. As a JVM version, it enables certain JVM 1.7 features. */
-    public static final VersionNumber Version17;
-    /** Version 1.8. As a JVM version, it enables certain JVM 1.8 features. */
-    public static final VersionNumber Version18;
-    /** Version 1.9. As a JVM version, it enables certain JVM 1.9 features. */
-    public static final VersionNumber Version19;
 
     public static final String OS;
     public static final String OS_lower;
@@ -94,6 +75,34 @@ public abstract class PlatformPropsImpl {
      */
     public static final boolean JAVA_6;
 
+    /**
+     * True only if being compatible w/ language level 9, e.g. JRE 9.
+     * <p>
+     * Implies {@link #JAVA_6} and {@link #isJavaSE()}
+     * </p>
+     * <p>
+     * Since JRE 9, the version string has dropped the major release number,
+     * see JEP 223: http://openjdk.java.net/jeps/223
+     * </p>
+     */
+    public static final boolean JAVA_9;
+
+    /**
+     * True only if being compatible w/ language level 17, e.g. JRE 17 (LTS).
+     * <p>
+     * Implies {@link #JAVA_9}, {@link #JAVA_6} and {@link #isJavaSE()}
+     * </p>
+     */
+    public static final boolean JAVA_17;
+
+    /**
+     * True only if being compatible w/ language level 21, e.g. JRE 21 (LTS).
+     * <p>
+     * Implies {@link #JAVA_17}, {@link #JAVA_9}, {@link #JAVA_6} and {@link #isJavaSE()}
+     * </p>
+     */
+    public static final boolean JAVA_21;
+
     public static final String NEWLINE;
     public static final boolean LITTLE_ENDIAN;
 
@@ -101,13 +110,16 @@ public abstract class PlatformPropsImpl {
     public static final ABIType ABI_TYPE;
     public static final OSType OS_TYPE;
     public static final String os_and_arch;
+    /**
+     * Usually GlueGen and subsequent JogAmp modules are build using dynamic libraries on supported platforms,
+     * hence this boolean is expected to be true.
+     * <p>
+     * However, on certain systems static libraries are being used on which native JNI library loading is disabled.
+     * </p>
+     */
+    public static final boolean useDynamicLibraries;
 
     static {
-        Version16 = new VersionNumber(1, 6, 0);
-        Version17 = new VersionNumber(1, 7, 0);
-        Version18 = new VersionNumber(1, 8, 0);
-        Version19 = new VersionNumber(1, 9, 0);
-
         // We don't seem to need an AccessController.doPrivileged() block
         // here as these system properties are visible even to unsigned Applets.
         final boolean isAndroid = AndroidVersion.isAvailable; // also triggers it's static initialization
@@ -135,8 +147,41 @@ public abstract class PlatformPropsImpl {
         JAVA_VM_NAME = System.getProperty("java.vm.name");
         JAVA_RUNTIME_NAME = getJavaRuntimeNameImpl();
         JAVA_SE = initIsJavaSE();
-        JAVA_6 = JAVA_SE && ( isAndroid || JAVA_VERSION_NUMBER.compareTo(Version16) >= 0 ) ;
-
+        if( JAVA_SE ) {
+            if( JAVA_VERSION_NUMBER.compareTo(new VersionNumber(21, 0, 0)) >= 0 ) {
+                JAVA_21 = true;
+                JAVA_17 = true;
+                JAVA_9 = true;
+                JAVA_6 = true;
+            } else if( JAVA_VERSION_NUMBER.compareTo(new VersionNumber(17, 0, 0)) >= 0 ) {
+                JAVA_21 = false;
+                JAVA_17 = true;
+                JAVA_9 = true;
+                JAVA_6 = true;
+            } else if( JAVA_VERSION_NUMBER.compareTo(new VersionNumber(9, 0, 0)) >= 0 ) {
+                JAVA_21 = false;
+                JAVA_17 = false;
+                JAVA_9 = true;
+                JAVA_6 = true;
+            } else if( isAndroid || JAVA_VERSION_NUMBER.compareTo(new VersionNumber(1, 6, 0)) >= 0 ) {
+                JAVA_21 = false;
+                JAVA_17 = false;
+                JAVA_9 = false;
+                JAVA_6 = true;
+            } else {
+                // we probably don't support anything below 1.6
+                JAVA_21 = false;
+                JAVA_17 = false;
+                JAVA_9 = false;
+                JAVA_6 = false;
+            }
+        } else {
+            // we probably don't support anything below 1.6 or non JavaSE
+            JAVA_21 = false;
+            JAVA_17 = false;
+            JAVA_9 = false;
+            JAVA_6 = false;
+        }
         NEWLINE = System.getProperty("line.separator");
 
         OS =  System.getProperty("os.name");
@@ -157,7 +202,7 @@ public abstract class PlatformPropsImpl {
             final ABIType[] _elfAbiType = { null };
             final int[] _elfLittleEndian = { 0 }; // 1 - little, 2 - big
             final boolean[] _elfValid = { false };
-            AccessController.doPrivileged(new PrivilegedAction<Object>() {
+            SecurityUtil.doPrivileged(new PrivilegedAction<Object>() {
                 @Override
                 public Object run() {
                     RandomAccessFile in = null;
@@ -275,9 +320,9 @@ public abstract class PlatformPropsImpl {
                 }
                 ABI_TYPE = elfABIType;
             } else {
-                if( AndroidVersion.CPU_TYPE.family == CPUFamily.ARM ||
+                if( AndroidVersion.CPU_TYPE.family == CPUFamily.ARM || AndroidVersion.CPU_TYPE.family == CPUFamily.X86 ||
                     null == AndroidVersion.CPU_TYPE2 ) {
-                    // Favor Android-1: Either b/c ARM Family, or no Android-2
+                    // Favor Android-1: Either b/c ARM or x86 Family, or no Android-2
                     ARCH = AndroidVersion.CPU_ABI;
                     ARCH_lower = ARCH;
                     CPU_ARCH = AndroidVersion.CPU_TYPE;
@@ -318,8 +363,13 @@ public abstract class PlatformPropsImpl {
                 strategy = 220;
             }
         }
+        if( OSType.IOS == OS_TYPE ) {
+            useDynamicLibraries = false;
+        } else {
+            useDynamicLibraries = true;
+        }
         if( DEBUG ) {
-            System.err.println("Platform.Hard: ARCH "+ARCH+", CPU_ARCH "+CPU_ARCH+", ABI_TYPE "+ABI_TYPE+" - strategy "+strategy+"(isAndroid "+isAndroid+", elfValid "+elfValid+")");
+            System.err.println("Platform.Hard: ARCH "+ARCH+", CPU_ARCH "+CPU_ARCH+", ABI_TYPE "+ABI_TYPE+" - strategy "+strategy+"(isAndroid "+isAndroid+", elfValid "+elfValid+"), useDynLibs "+useDynamicLibraries);
         }
         os_and_arch = getOSAndArch(OS_TYPE, CPU_ARCH, ABI_TYPE, LITTLE_ENDIAN);
     }
@@ -328,7 +378,7 @@ public abstract class PlatformPropsImpl {
 
     private static final String getJavaRuntimeNameImpl() {
         // the fast path, check property Java SE instead of traversing through the ClassLoader
-        return AccessController.doPrivileged(new PrivilegedAction<String>() {
+        return SecurityUtil.doPrivileged(new PrivilegedAction<String>() {
             @Override
             public String run() {
               return System.getProperty("java.runtime.name");
@@ -380,7 +430,7 @@ public abstract class PlatformPropsImpl {
      * For Elf parsing one of the following binaries is used:
      * <ul>
      *  <li>Linux: Current executable</li>
-     *  <li>Android: Found gluegen-rt library</li>
+     *  <li>Android: Found gluegen_rt library</li>
      *  <li>Other: A found java/jvm native library.</li>
      * </ul>
      * </p>
@@ -392,7 +442,7 @@ public abstract class PlatformPropsImpl {
         File file = null;
         try {
             if( OSType.ANDROID == osType ) {
-                file = new File(NativeLibrary.findLibrary("gluegen-rt", PlatformPropsImpl.class.getClassLoader()));
+                file = new File(NativeLibrary.findLibrary("gluegen_rt", PlatformPropsImpl.class.getClassLoader()));
             } else {
                 if( OSType.LINUX == osType ) {
                     file = new File("/proc/self/exe");
@@ -492,6 +542,9 @@ public abstract class PlatformPropsImpl {
         if ( osLower.startsWith("kd") ) {
             return OSType.OPENKODE;
         }
+        if ( osLower.startsWith("ios") ) {
+            return OSType.IOS;
+        }
         throw new RuntimeException("Please port OS detection to your platform (" + OS_lower + "/" + ARCH_lower + ")");
     }
 
@@ -511,6 +564,7 @@ public abstract class PlatformPropsImpl {
      * <ul>
      *   <li>android-armv6</li>
      *   <li>android-aarch64</li>
+     *   <li>android-x86</li>
      *   <li>linux-armv6</li>
      *   <li>linux-armv6hf</li>
      *   <li>linux-i586</li>
@@ -522,6 +576,7 @@ public abstract class PlatformPropsImpl {
      *   <li>linux-aarch64</li>
      *   <li>linux-amd64</li>
      *   <li>linux-ppc64</li>
+     *   <li>linux-ppc64le</li>
      *   <li>linux-mips64</li>
      *   <li>linux-ia64</li>
      *   <li>linux-sparcv9</li>
@@ -578,7 +633,7 @@ public abstract class PlatformPropsImpl {
                 _and_arch_tmp = "amd64";
                 break;
             case PPC64:
-                _and_arch_tmp = "ppc64";
+                _and_arch_tmp = littleEndian ? "ppc64le" : "ppc64";
                 break;
             case MIPS_64:
                 _and_arch_tmp = "mips64";
@@ -604,6 +659,10 @@ public abstract class PlatformPropsImpl {
             case MACOS:
               os_ = "macosx";
               _and_arch_final = "universal";
+              break;
+            case IOS:
+              os_ = "ios";
+              _and_arch_final = _and_arch_tmp;
               break;
             case WINDOWS:
               os_ = "windows";
